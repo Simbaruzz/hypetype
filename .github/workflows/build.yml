@@ -11,10 +11,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Download AutoHotkey
-        run: |
-          Invoke-WebRequest -Uri "https://github.com/AutoHotkey/AutoHotkey/releases/download/v2.0.11/AutoHotkey_2.0.11_setup.exe" -OutFile "ahk-install.exe"
-          Start-Process -FilePath "ahk-install.exe" -ArgumentList "/S" -Wait
+     - name: Download and Install AutoHotkey
+  run: |
+    Invoke-WebRequest -Uri "https://github.com/AutoHotkey/AutoHotkey/releases/download/v2.0.11/AutoHotkey_2.0.11_setup.exe" -OutFile "ahk-install.exe"
+    Write-Host "Download completed, starting installation..."
+    Start-Process -FilePath "ahk-install.exe" -ArgumentList "/S /D=C:\Program Files\AutoHotkey" -NoNewWindow -Wait -TimeoutSec 300
+    Write-Host "Installation completed"
 
       - name: Compile AHK to EXE
         run: |
