@@ -26,12 +26,9 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "Starting compilation..."
-          Write-Host "Current directory:"
-          Get-Location
-          & ".\AutoHotkey\Compiler\Ahk2Exe.exe" /in "scr\main.ahk" /out "hypetype.exe" /icon "assets\icon.ico" /base ".\AutoHotkey\AutoHotkeyU32.exe"
-          Write-Host "Compilation completed"
-          Write-Host "Files in current directory:"
-          Get-ChildItem -Recurse
+          & ".\AutoHotkey\Compiler\Ahk2Exe.exe" /in "scr\main.ahk" /out "./hypetype.exe" /icon "assets\icon.ico" /base ".\AutoHotkey\AutoHotkeyU32.exe"
+          Write-Host "Checking output file location:"
+          Get-ChildItem -Path . -Filter hypetype.exe -Recurse
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
