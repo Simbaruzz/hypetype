@@ -1,8 +1,11 @@
-name: Build and Release
+name: Build HypeType
 
 on:
-  release:
-    types: [created]
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -11,23 +14,21 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Download and Install AutoHotkey
+      - name: Download AutoHotkey Portable
         run: |
-          Invoke-WebRequest -Uri "https://github.com/AutoHotkey/AutoHotkey/releases/download/v2.0.11/AutoHotkey_2.0.11_setup.exe" -OutFile "ahk-install.exe"
-          Write-Host "Download completed, starting installation..."
-          Start-Process -FilePath "ahk-install.exe" -ArgumentList "/S /D=C:\Program Files\AutoHotkey" -NoNewWindow -Wait -TimeoutSec 300
-          Write-Host "Installation completed"
+          Write-Host "Downloading AutoHotkey v1.1 Portable..."
+          Invoke-WebRequest -Uri "https://www.autohotkey.com/download/1.1/AutoHotkey_1.1.34.03.zip" -OutFile "AutoHotkey.zip"
+          Expand-Archive -Path "AutoHotkey.zip" -DestinationPath "AutoHotkey"
+          Write-Host "AutoHotkey Portable extracted successfully"
 
       - name: Compile AHK to EXE
         run: |
-          & "C:\Program Files\AutoHotkey\Compiler\Ahk2Exe.exe" /in "src/main.ahk" /icon "assets/icon.ico" /out "build/hypetype.exe"
+          Write-Host "Starting compilation..."
+          & "AutoHotkey\Compiler\Ahk2Exe.exe" /in "main.ahk" /out "hypetype.exe" /icon "assets\icon.ico" /base "AutoHotkey\AutoHotkeyU32.exe"
+          Write-Host "Compilation completed"
 
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v2
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./hypetype.exe
-          asset_name: hypetype.exe
-          asset_content_type: application/octet-stream
+          name: hypetype
+          path: hypetype.exe
