@@ -34,4 +34,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: hypetype
-          path: hypetype.exe
+          path: src/hypetype.exe
