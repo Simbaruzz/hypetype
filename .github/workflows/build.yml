@@ -12,7 +12,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Download AutoHotkey Portable
         shell: pwsh
@@ -30,7 +30,7 @@ jobs:
           Write-Host "Compilation completed"
 
       - name: Upload Build Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: hypetype
           path: hypetype.exe
