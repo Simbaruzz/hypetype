@@ -7,10 +7,10 @@ SetTitleMatchMode, 2 ; Установка режима поиска окон
 
 ;=============================================================================== МЕНЮ И ТРЕЙ ===================================================================================
 
-; Настроить иконку в трее
-iconPath := A_Temp "\icon.ico"
-FileInstall, assets\icon.ico, %iconPath%, 1
-Menu, Tray, Icon, %iconPath%
+;Настроить иконку в трее
+;iconPath := A_Temp "\icon.ico"
+;FileInstall, assets\icon.ico, %iconPath%, 1
+;Menu, Tray, Icon, %iconPath%
 
 ; ====== Меню в трее и подсказка ======
 global CurrentMenuState := "Показать раскладку" ; Изначальное состояние меню
