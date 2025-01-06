@@ -13,7 +13,7 @@ jobs:
 
       - name: Download AutoHotkey
         run: |
-          Invoke-WebRequest -Uri "https://www.autohotkey.com/download/ahk-install.exe" -OutFile "ahk-install.exe"
+          Invoke-WebRequest -Uri "https://github.com/AutoHotkey/AutoHotkey/releases/download/v2.0.11/AutoHotkey_2.0.11_setup.exe" -OutFile "ahk-install.exe"
           Start-Process -FilePath "ahk-install.exe" -ArgumentList "/S" -Wait
 
       - name: Compile AHK to EXE
