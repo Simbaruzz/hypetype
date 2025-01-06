@@ -1,11 +1,8 @@
 name: Build HypeType
 
 on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:
+  release:
+    types: [created]
 
 jobs:
   build:
@@ -34,8 +31,12 @@ jobs:
               Write-Host "File created successfully!"
           }
 
-      - name: Upload Build Artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: hypetype
-          path: scr/hypetype.exe
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./scr/hypetype.exe
+          asset_name: hypetype.exe
+          asset_content_type: application/octet-stream
