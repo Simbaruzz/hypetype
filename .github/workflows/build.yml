@@ -20,18 +20,25 @@ jobs:
           Write-Host "Downloading AutoHotkey v1.1 Portable..."
           Invoke-WebRequest -Uri "https://github.com/AutoHotkey/AutoHotkey/releases/download/v1.1.37.02/AutoHotkey_1.1.37.02.zip" -OutFile "AutoHotkey.zip"
           Expand-Archive -Path "AutoHotkey.zip" -DestinationPath "AutoHotkey"
-          Get-ChildItem -Path "AutoHotkey" -Recurse
           Write-Host "AutoHotkey Portable extracted successfully"
 
       - name: Compile AHK to EXE
         shell: pwsh
         run: |
           Write-Host "Starting compilation..."
+          Write-Host "Current directory:"
+          Get-Location
           & ".\AutoHotkey\Compiler\Ahk2Exe.exe" /in "main.ahk" /out "hypetype.exe" /icon "assets\icon.ico" /base ".\AutoHotkey\AutoHotkeyU32.exe"
           Write-Host "Compilation completed"
+          Write-Host "Files in current directory:"
+          Get-ChildItem -Recurse
+          Write-Host "Looking for hypetype.exe..."
+          Get-ChildItem -Path . -Filter hypetype.exe -Recurse
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: hypetype
-          path: hypetype.exe
+          path: |
+            **\hypetype.exe
+            hypetype.exe
