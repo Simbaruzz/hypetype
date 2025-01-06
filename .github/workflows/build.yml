@@ -1,33 +1,33 @@
-name: Build AHK Script
+name: Build and Release
 
 on:
-  push:
-    tags:
-      - 'v*' # Trigger on version tags
+  release:
+    types: [created]
 
 jobs:
   build:
     runs-on: windows-latest
+
     steps:
       - uses: actions/checkout@v2
 
-     - name: Download and Install AutoHotkey
-  run: |
-    Invoke-WebRequest -Uri "https://github.com/AutoHotkey/AutoHotkey/releases/download/v2.0.11/AutoHotkey_2.0.11_setup.exe" -OutFile "ahk-install.exe"
-    Write-Host "Download completed, starting installation..."
-    Start-Process -FilePath "ahk-install.exe" -ArgumentList "/S /D=C:\Program Files\AutoHotkey" -NoNewWindow -Wait -TimeoutSec 300
-    Write-Host "Installation completed"
+      - name: Download and Install AutoHotkey
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/AutoHotkey/AutoHotkey/releases/download/v2.0.11/AutoHotkey_2.0.11_setup.exe" -OutFile "ahk-install.exe"
+          Write-Host "Download completed, starting installation..."
+          Start-Process -FilePath "ahk-install.exe" -ArgumentList "/S /D=C:\Program Files\AutoHotkey" -NoNewWindow -Wait -TimeoutSec 300
+          Write-Host "Installation completed"
 
       - name: Compile AHK to EXE
         run: |
           & "C:\Program Files\AutoHotkey\Compiler\Ahk2Exe.exe" /in "src/main.ahk" /icon "assets/icon.ico" /out "build/hypetype.exe"
 
-      - name: Create Release
-        id: create_release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: build/hypetype.exe
-          draft: false
-          prerelease: false
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./hypetype.exe
+          asset_name: hypetype.exe
+          asset_content_type: application/octet-stream
