@@ -1,4 +1,4 @@
-name: Build hypehype
+name: Build HypeType
 
 on:
   push:
@@ -17,8 +17,8 @@ jobs:
       - name: Download AutoHotkey Portable
         shell: pwsh
         run: |
-          Write-Host "Downloading AutoHotkey v2.0 Portable..."
-          Invoke-WebRequest -Uri "https://github.com/AutoHotkey/AutoHotkey/releases/download/v2.0.18/AutoHotkey_2.0.18.zip" -OutFile "AutoHotkey.zip"
+          Write-Host "Downloading AutoHotkey v1.1 Portable..."
+          Invoke-WebRequest -Uri "https://github.com/AutoHotkey/AutoHotkey/releases/download/v1.1.37.02/AutoHotkey_1.1.37.02.zip" -OutFile "AutoHotkey.zip"
           Expand-Archive -Path "AutoHotkey.zip" -DestinationPath "AutoHotkey"
           Get-ChildItem -Path "AutoHotkey" -Recurse
           Write-Host "AutoHotkey Portable extracted successfully"
@@ -27,7 +27,7 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "Starting compilation..."
-          & ".\AutoHotkey\v2\Compiler\Ahk2Exe.exe" /in "main.ahk" /out "hypetype.exe" /icon "assets\icon.ico" /base ".\AutoHotkey\v2\AutoHotkey64.exe"
+          & ".\AutoHotkey\Compiler\Ahk2Exe.exe" /in "main.ahk" /out "hypetype.exe" /icon "assets\icon.ico" /base ".\AutoHotkey\AutoHotkeyU32.exe"
           Write-Host "Compilation completed"
 
       - name: Upload Build Artifact
