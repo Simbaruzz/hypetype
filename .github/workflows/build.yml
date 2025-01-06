@@ -18,7 +18,7 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "Downloading AutoHotkey v1.1 Portable..."
-          Invoke-WebRequest -Uri "https://github.com/AutoHotkey/AutoHotkey/releases/download/v1.1.34.04/AutoHotkey_1.1.34.04.zip" -OutFile "AutoHotkey.zip"
+          Invoke-WebRequest -Uri "https://github.com/AutoHotkey/AutoHotkey/releases/download/v2.0.18/AutoHotkey_2.0.18.zip" -OutFile "AutoHotkey.zip"
           Expand-Archive -Path "AutoHotkey.zip" -DestinationPath "AutoHotkey"
           Write-Host "AutoHotkey Portable extracted successfully"
 
