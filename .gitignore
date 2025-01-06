@@ -1,0 +1,21 @@
+# Compiled files
+*.exe
+*.dll
+*.zip
+*.ahk.bak
+
+# Windows system files
+desktop.ini
+Thumbs.db
+ehthumbs.db
+$RECYCLE.BIN/
+
+# Temp files
+*.tmp
+*._temp
+*.temp
+
+# IDE and editor files
+.vscode/
+*.sublime-workspace
+*.sublime-project
