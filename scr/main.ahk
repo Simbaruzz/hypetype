@@ -1,7 +1,9 @@
 ﻿#NoEnv
+;#InstallKeybdHook
 SetWorkingDir %A_ScriptDir% 
 #SingleInstance Force
 #Persistent ; Удержание скрипта в памяти
+SendMode Input
 SetTitleMatchMode, 2 ; Установка режима поиска окон
 
 
@@ -13,7 +15,6 @@ SetTitleMatchMode, 2 ; Установка режима поиска окон
 ;Menu, Tray, Icon, %iconPath%
 
 ; ====== Меню в трее и подсказка ======
-global CurrentMenuState := "Показать раскладку" ; Изначальное состояние меню
 
 Menu, Tray, NoStandard
 Menu, Tray, Add, Выход, ExitScript
@@ -24,7 +25,7 @@ Menu, Tray, Add, ; Разделитель
 Menu, Tray, Add, Редактировать, ShowEditor ; Добавляем пункт меню с текстом
 
 ; Установить подсказку
-Menu, Tray, Tip, hypetype 0.4
+Menu, Tray, Tip, hypetype beta 0.0.4
 
 ; Обновляем статус меню
 CheckAutostart()
@@ -33,72 +34,195 @@ UpdateMenuReg()
 
 
 
-;================================================================= Перехват и карта клавиш из ini файла =========================================================================
+;================================================================= ПЕРЕХВАТ КЛАВИШ и CONGIF.INI =========================================================================
 
 
-; Устанавливаем config.ini
+; -------------------------------------------
+; Глобальные переменные 
+; -------------------------------------------
 global configFile := A_ScriptDir "\config.ini"
+global ModifierKey := "vkA9" ; Правый Alt
+global keyMappings := {}
 
+; Эти две переменные отвечают за «модальный» ввод диакритики:
+global g_isDiacriticMode := false
+global g_waitingDiacritic := ""
 
-; Определяем клавишу-модификатор
-ModifierKey := "vkA9"  ; Правый Alt
-
-; Создаем объект для хранения соответствий
-keyMappings := {}
-
-; Читаем файл конфигурации
+; -------------------------------------------
+; Чтение config.ini
+; Формат строк: SCxxx=Symbol1,Symbol2
+; -------------------------------------------
 FileEncoding, UTF-8
-Loop, Read, %configFile%
+Loop, Read, % configFile
 {
-    ; Пропускаем BOM и заголовок секции
     if (A_Index <= 2)
         continue
 
-    ; Разбираем строку формата ScanCode=Symbol1,Symbol2
     line := A_LoopReadLine
-    if (line != "") {
+    if (line != "")
+    {
         parts := StrSplit(line, "=")
         scanCode := parts[1]
         symbols := StrSplit(parts[2], ",")
-        keyMappings[scanCode] := [symbols[1], symbols[2]]
+        keyMappings[scanCode] := [ symbols[1], symbols[2] ]
     }
 }
 
-; Функция для обработки нажатий клавиш
+; -------------------------------------------
+; Проверяем: символ ∈ диапазоне U+0300..U+036F?
+; -------------------------------------------
+IsCombiningDiacritic(symbol) {
+    if (StrLen(symbol) != 1)
+        return false
+    code := Ord(symbol)
+    return (code >= 0x0300 && code <= 0x036F)
+}
+
+; -------------------------------------------
+; Normalization через Normaliz.dll, Form C
+; -------------------------------------------
+NormalizeString(str) {
+    static hDll := 0, pNormalizeString := 0
+
+    if !hDll {
+        hDll := DllCall("LoadLibrary", "Str", "Normaliz.dll", "Ptr")
+        if !hDll {
+            MsgBox, 16, Error, Не могу загрузить Normaliz.dll — версия Windows устарела! 
+            return str
+        }
+        pNormalizeString := DllCall("GetProcAddress", "Ptr", hDll, "AStr", "NormalizeString", "Ptr")
+        if !pNormalizeString {
+            MsgBox, 16, Error, Не могу получить адрес функции NormalizeString!
+            return str
+        }
+    }
+
+    bufSize := DllCall(pNormalizeString
+    , "int", 1 ; Form C
+    , "WStr", str
+    , "int", StrLen(str)
+    , "ptr", 0
+    , "int", 0
+    , "int")
+    if (bufSize <= 0)
+        return str
+
+    VarSetCapacity(buf, bufSize*2, 0)
+    ret := DllCall(pNormalizeString
+    , "int", 1
+    , "WStr", str
+    , "int", StrLen(str)
+    , "ptr", &buf
+    , "int", bufSize
+    , "int")
+    if (ret <= 0)
+        return str
+
+    return StrGet(&buf, "UTF-16")
+}
+
+; -------------------------------------------
+; Основная функция: работа с диакритикой + верхний символ с Shift + нижний только с Alt 
+; -------------------------------------------
 NumberKey(scanCode) {
     global keyMappings
+    global g_isDiacriticMode, g_waitingDiacritic
 
     symbols := keyMappings[scanCode]
     if (!symbols)
         return
 
-    SetKeyDelay, 1
+    SetKeyDelay, -1
 
-    if (GetKeyState("Shift", "P")) {
-        SendRaw % symbols[2]  ; Используем SendRaw вместо SendInput
+    ; Определяем, какой символ будем использовать
+    symbol := (GetKeyState("Shift", "P")) ? symbols[2] : symbols[1]
+    if (symbol = "")
+        return
+
+    ; Проверяем, не диакритика ли это
+    if (IsCombiningDiacritic(symbol)) {
+        ; Если диакритика — запоминаем диакритический символ и включаем режим
+        g_waitingDiacritic := symbol
+        g_isDiacriticMode := true
+
+        ToolTip, %symbol% Введите букву
+        SetTimer, RemoveToolTip, -1500
+
+        ; Запускаем одноразовый Input для захвата «следующего» символа
+        WaitForNextChar()
+        return
+    }
+    
+    ; Если это НЕ диакритика:
+    if (g_isDiacriticMode) {
+        ; У нас «висит» диакритика — склеим
+        combined := symbol . g_waitingDiacritic
+        normalized := NormalizeString(combined)
+        SendInput % normalized
+
+        g_waitingDiacritic := ""
+        g_isDiacriticMode := false
     } else {
-        SendRaw % symbols[1]
+        ; Обычное поведение
+        SendRaw % symbol
     }
 }
 
-; Регистрируем хоткеи для каждого сканкода
-for scanCode in keyMappings {
-    ; Формируем комбинацию хоткея
+; -------------------------------------------
+; Ждём следующий «обычный» символ без модификаторов
+; -------------------------------------------
+WaitForNextChar() {
+    global g_isDiacriticMode, g_waitingDiacritic
+
+    if (!g_isDiacriticMode)
+        return
+
+    BlockInput, On
+    Input, SingleKey, L1 I T5, {Enter}{Escape}{LAlt}{RAlt}{Ctrl}{Shift}{AppsKey}{CapsLock}
+    BlockInput, Off
+
+    if (ErrorLevel = "Timeout") {
+        g_isDiacriticMode := false
+        g_waitingDiacritic := ""
+        ToolTip, Время ввода буквы вышло
+        SetTimer, RemoveToolTip, -1200, %x%, %y%
+        return
+    } else if InStr(ErrorLevel, "EndKey:") {
+        g_isDiacriticMode := false
+        g_waitingDiacritic := ""
+        ToolTip, Диакритика отменена
+        SetTimer, RemoveToolTip, -1200
+        return
+    }
+
+    combined := SingleKey . g_waitingDiacritic
+    normalized := NormalizeString(combined)
+    SendInput % normalized
+
+    g_waitingDiacritic := ""
+    g_isDiacriticMode := false
+}
+
+RemoveToolTip() {
+    ToolTip
+}
+
+; -------------------------------------------
+; Регистрируем хоткеи
+; -------------------------------------------
+for scanCode in keyMappings
+{
     hotkeyCombination := ModifierKey . " & " . scanCode
-
-    ; Создаем привязанную функцию с текущим сканкодом
     fn := Func("NumberKey").Bind(scanCode)
-
-    ; Регистрируем хоткей
     Hotkey, %hotkeyCombination%, %fn%
 }
 
-
+; Подлкючаем редактор и карту клавиш
 #Include editor.ahk
 
-;====================================================================== Автозапуск ========================================================================
+;====================================================================== АВТОЗАПУПСК ПРИ СТАРТЕ СИСТЕМЫ ========================================================================
 
-;==== Функция для переключения автозапуска ====
+;==== Флаг для переключения автозапуска ====
 ToggleAutostart:
     ; Получаем путь к текущему исполнимому файлу
     exePath := A_ScriptFullPath
@@ -133,7 +257,7 @@ CheckAutostart() {
 return
 
 
-;======================================================================== Виртуализация ==================================================================
+;======================================================================== ВИРТУАЛИЗАЦИЯ ==================================================================
 
 global Installed := false  ; Статус установки
 CheckInstalled()  ; Проверяем состояние
@@ -177,7 +301,7 @@ UpdateMenuReg() {
     }
 }
 
-
+; Флаг для закрытия программы
 ExitScript:
     ExitApp
 return
@@ -185,7 +309,7 @@ return
 
 ;================================================================= Горячие клавиши ========================================================================
 
-;Нажать Alt+Enter
+;Нажать Alt+Enter для Развертывания видео и Свойств в проводнике
 vkA9 & Enter::
     Send {LAlt Down}{Enter Down}{Enter Up}{LAlt Up}
 return
@@ -193,3 +317,14 @@ return
 ;==================== 
 
 
+; -----------------------------------------------------
+; Если хотим, чтобы Escape отменял "ожидание диакритики"
+; -----------------------------------------------------
+#If g_isDiacriticMode
+Escape::
+    g_isDiacriticMode := false
+    g_waitingDiacritic := ""
+    ToolTip, Диакритика отменена
+    SetTimer, RemoveToolTip, -1200
+return
+#If
