@@ -76,8 +76,8 @@ defaultMapping := { "SC002": ["¹", "¡"]
                  , "SC010": ["` ", "̆"]      ; Combining Breve
                  , "SC011": ["✓", "⌃"]
                  , "SC012": ["€", "⌥"]
-                 , "SC013": ["®", ""]       Combining Circle Above
-                 , "SC014": ["™", "̊"]
+                 , "SC013": ["®", "̊"]       ;Combining Circle Above
+                 , "SC014": ["™", ""]
                  , "SC015": ["ѣ", "Ѣ"]
                  , "SC016": ["ѵ", "Ѵ"]
                  , "SC017": ["і", "І"]
