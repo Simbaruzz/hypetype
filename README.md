@@ -8,7 +8,7 @@
 
 [Скачать](https://github.com/Simbaruzz/hypetype/releases/download/v0.0.3/hypetype.exe) · [Глянуть обзор↗](https://youtu.be/dQw4w9WgXcQ)
 
-<a href="https://youtu.be/dQw4w9WgXcQ" target="_blank">текст ссылки</a>
+
 <br>
 
 ## Работает как обычно
