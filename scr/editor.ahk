@@ -54,24 +54,25 @@ global currentKey := ""
 Gui, Main:New, +AlwaysOnTop +Border
 Gui, Main:Color, FFFFFF
 
-
+;============================================================== ЗАГРУЗКА СИМВОЛОВ ================================================================
 LoadSymbols() {
     global keyMappings, configFile, buttons, scanCodeToName
     FileEncoding, UTF-8
 
     if !FileExist(configFile) {
-        ; Определяем раскладку по умолчанию (теперь с сканкодами)
+
+        ; Раскладку по умолчанию (клавиши заданы сканкодами)
 defaultMapping := { "SC002": ["¹", "¡"]
-                 , "SC003": ["²", "¹⁄₂"]
-                 , "SC004": ["³", "¹⁄₃"]
-                 , "SC005": ["$", "¹⁄₄"]
+                 , "SC003": ["²", "½"]
+                 , "SC004": ["³", "⅓"]
+                 , "SC005": ["$", "¼"]
                  , "SC006": ["‰", " "]
                  , "SC007": ["↑", "̂"]      ; Combining Circumflex Accent
                  , "SC008": ["` ", "¿"]
                  , "SC009": ["∞", " "]
                  , "SC00A": ["←", "‹"]
                  , "SC00B": ["→", "›"]
-                 , "SC00C": ["—", "–"]      ; минус
+                 , "SC00C": ["—", "–"]      ; дефис
                  , "SC00D": ["≠", "±"]      ; равно
                  , "SC010": ["` ", "̆"]      ; Combining Breve
                  , "SC011": ["✓", "⌃"]
@@ -102,28 +103,71 @@ defaultMapping := { "SC002": ["¹", "¡"]
                  , "SC02E": ["©", "¢"]
                  , "SC02F": ["↓", "̌"]      ; Combining Caron
                  , "SC030": ["ß", "ẞ"]
-                 , "SC031": ["` ", "̃"]      ; Combining Tilde
+                 , "SC031": ["` ", "̃"]      ; Combining Tilde · N
                  , "SC032": ["−", "•"]
                  , "SC033": ["«", "„"]
                  , "SC034": ["»", "“"]      ; dot
                  , "SC035": ["` ", "́"]      ; Combining Acute Accent
-                 , "SC039": ["` ", "` "]      ; пробел
-                 , "SC029": [" ", "``"] } 
+                 , "SC039": ["` ", "` "]    ; пробел
+                 , "SC029": ["", "``"] }   ; тильда
 
-        ; Записываем BOM с переводом строки
-        FileAppend, % Chr(0xEF) . Chr(0xBB) . Chr(0xBF) . "`n", %configFile%, UTF-8
+tempFile := configFile . ".tmp"
+        success := true
 
-        ; Записываем заголовок секции
-        FileAppend, [KeyMappings]`n, %configFile%, UTF-8
+        try {
+            ; Записываем BOM и заголовок во временный файл
+            FileAppend, % Chr(0xEF) . Chr(0xBB) . Chr(0xBF) . "`n", %tempFile%, UTF-8
+            if ErrorLevel {
+                success := false
+                MsgBox, Ошибка при записи BOM!
+                return
+            }
 
-        ; Записываем дефолтные значения
-        for scanCode, symbols in defaultMapping {
-            writeString := symbols[1] . "," . symbols[2]
-            FileAppend, %scanCode%=%writeString%`n, %configFile%, UTF-8
+            FileAppend, [KeyMappings]`n, %tempFile%, UTF-8
+            if ErrorLevel {
+                success := false
+                MsgBox, Ошибка при записи заголовка секции!
+                return
+            }
+
+            ; Записываем дефолтные значения
+            for scanCode, symbols in defaultMapping {
+                writeString := symbols[1] . "," . symbols[2]
+                FileAppend, %scanCode%=%writeString%`n, %tempFile%, UTF-8
+                if ErrorLevel {
+                    success := false
+                    break
+                }
+            }
+
+            ; Проверяем успешность записи
+            if (success) {
+                ; Проверяем содержимое временного файла
+                FileRead, content, %tempFile%
+                if (StrLen(content) > 100) {  ; Минимальная ожидаемая длина
+                    ; Копируем временный файл в основной
+                    FileCopy, %tempFile%, %configFile%, 1  ; 1 = перезаписать если существует
+                    FileDelete, %tempFile%
+
+                    ; Перезапускаем скрипт
+                    Run, %A_ScriptFullPath%
+                } else {
+                    MsgBox, Ошибка: файл конфигурации слишком короткий!
+                    FileDelete, %tempFile%
+                }
+            } else {
+                MsgBox, Ошибка при создании конфигурации!
+                FileDelete, %tempFile%
+            }
+        } catch e {
+            MsgBox, % "Произошла ошибка: " . e.message
+            if FileExist(tempFile)
+                FileDelete, %tempFile%
         }
-       ; перезагружаем скрипт
-        Run, %A_ScriptFullPath%
+    }
 }
+
+
 
     ; Очищаем и заново заполняем keyMappings
     keyMappings := {}
@@ -164,12 +208,12 @@ defaultMapping := { "SC002": ["¹", "¡"]
             GuiControl, Main:, % buttons[scanCode], %newText%
         }
     }
-}
+
 
 
 ;================================================================ СОЗДАЕМ КНОПКИ =========================================================
 
-; Объявляем глобальные переменные для размеров кнопок
+; Объявляем глобальные переменные для размеров кнопок и шрифтов
 
         DPI := A_ScreenDPI  ; DPI основного монитора
 	Scale := DPI / 96   ; DPI Scaling Factor (96 DPI = 100%)
@@ -304,26 +348,102 @@ SaveSymbols:
 
     ; Создаем временный файл
     tempFile := A_ScriptDir . "\temp.ini"
-    FileDelete, %tempFile%
+    backupFile := configFile . ".backup"
 
-    ; Записываем BOM в временный файл
-    FileAppend, % Chr(0xEF) . Chr(0xBB) . Chr(0xBF) . "`n", %tempFile%, UTF-8
-
-    ; Записываем заголовок
-    FileAppend, [KeyMappings]`n, %tempFile%, UTF-8
-
-    ; Обновляем keyMappings
-    keyMappings[currentKey] := [NoShiftSymbol, ShiftSymbol]
-
-    ; Записываем все значения
-    for scanCode, symbols in keyMappings {
-        writeString := symbols[1] . "," . symbols[2]
-        FileAppend, %scanCode%=%writeString%`n, %tempFile%, UTF-8
+    ; Убеждаемся, что временный файл не существует
+    if FileExist(tempFile) {
+        FileDelete, %tempFile%
+        Sleep, 50
     }
 
-    ; Заменяем файл
-    FileDelete, %configFile%
-    FileMove, %tempFile%, %configFile%
+    success := true
+
+    try {
+        ; Записываем BOM в временный файл
+        FileAppend, % Chr(0xEF) . Chr(0xBB) . Chr(0xBF) . "`n", %tempFile%, UTF-8
+        if ErrorLevel {
+            success := false
+            MsgBox, Ошибка при записи BOM!
+            return
+        }
+        Sleep, 20
+
+        ; Записываем заголовок
+        FileAppend, [KeyMappings]`n, %tempFile%, UTF-8
+        if ErrorLevel {
+            success := false
+            MsgBox, Ошибка при записи заголовка!
+            return
+        }
+        Sleep, 20
+
+        ; Обновляем keyMappings
+        keyMappings[currentKey] := [NoShiftSymbol, ShiftSymbol]
+
+        ; Создаем временный массив для проверки
+        tempContent := ""
+
+        ; Записываем все значения
+        for scanCode, symbols in keyMappings {
+            writeString := scanCode . "=" . symbols[1] . "," . symbols[2] . "`n"
+            tempContent .= writeString
+        }
+
+        ; Записываем весь контент одной операцией
+        FileAppend, %tempContent%, %tempFile%, UTF-8
+        if ErrorLevel {
+            success := false
+            MsgBox, Ошибка при записи данных!
+            return
+        }
+        Sleep, 50
+
+        ; Проверяем записанный файл
+        FileRead, verifyContent, %tempFile%
+        if (StrLen(verifyContent) < StrLen(tempContent)) {
+            success := false
+            MsgBox, Ошибка: файл записан не полностью!
+            return
+        }
+
+        if (success) {
+            ; Делаем backup текущего конфига перед заменой
+            if FileExist(configFile) {
+                FileCopy, %configFile%, %backupFile%, 1
+                Sleep, 50
+            }
+
+            ; Заменяем файл
+            FileDelete, %configFile%
+            Sleep, 50
+            FileMove, %tempFile%, %configFile%
+            Sleep, 50
+
+            ; Проверяем финальный результат
+            if FileExist(configFile) {
+                FileRead, finalContent, %configFile%
+                if (StrLen(finalContent) < StrLen(tempContent)) {
+                    ; Восстанавливаем из backup
+                    FileCopy, %backupFile%, %configFile%, 1
+                    MsgBox, Ошибка: восстановлен backup файл!
+                    return
+                } else {
+                    ; Если всё успешно, удаляем backup файл
+                    if FileExist(backupFile) {
+                        FileDelete, %backupFile%
+                    }
+                }
+            } else {
+                MsgBox, Ошибка: файл конфигурации не создан!
+                return
+            }
+        }
+    } catch e {
+        MsgBox, % "Произошла ошибка: " . e.message
+        if FileExist(tempFile)
+            FileDelete, %tempFile%
+        return
+    }
 
     ; Обновляем текст на кнопке
     buttonVarName := buttons[currentKey]

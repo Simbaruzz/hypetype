@@ -1,5 +1,4 @@
 ﻿#NoEnv
-;#InstallKeybdHook
 SetWorkingDir %A_ScriptDir% 
 #SingleInstance Force
 #Persistent ; Удержание скрипта в памяти
@@ -9,6 +8,7 @@ SetTitleMatchMode, 2 ; Установка режима поиска окон
 
 ;=============================================================================== МЕНЮ И ТРЕЙ ===================================================================================
 
+;Для использования в виде скрипта можно юзать эту настройку для иконки
 ;Настроить иконку в трее
 ;iconPath := A_Temp "\icon.ico"
 ;FileInstall, assets\icon.ico, %iconPath%, 1
@@ -222,7 +222,10 @@ for scanCode in keyMappings
 
 ;====================================================================== АВТОЗАПУПСК ПРИ СТАРТЕ СИСТЕМЫ ========================================================================
 
+
+;--------------------------------------------
 ;==== Флаг для переключения автозапуска ====
+;-------------------------------------------
 ToggleAutostart:
     ; Получаем путь к текущему исполнимому файлу
     exePath := A_ScriptFullPath
@@ -276,20 +279,25 @@ CheckInstalled() {
     }
 }
 
-; Включение/отключение установки
-ToggleInstall:
-    if (!Installed) {
-        ; Установка: меняем RAlt
-        RegWrite, REG_BINARY, HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Keyboard Layout, Scancode Map, 00000000000000000200000068e038e000000000
-        MsgBox, 64, Готово, Вирутализация включена! Перезагрузите компьютер.
-    } else {
-        ; Сброс: удаляем Scancode Map
-        RegDelete, HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Keyboard Layout, Scancode Map
-        MsgBox, 64, Готово, Виртуализация выключена! Перезагрузите компьютер.
+;-----------------------------------------------------------
+;========== Включение/отключение виртуализации =============
+;-----------------------------------------------------------
+ToggleInstall() {
+    if (!A_IsAdmin) {
+        MsgBox, 48, Требуются права администратора!, Закройте и запустите программу от имени администратора для работы с «Виртуализацией».
+        return
     }
-    CheckInstalled()  ; Обновляем статус
-    UpdateMenuReg()  ; Обновляем меню
-return
+
+    if (!Installed) {
+        RegWrite, REG_BINARY, HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Keyboard Layout, Scancode Map, 00000000000000000200000068e038e000000000
+        MsgBox, 64, Всё Чикаго!, «Вирутализация» включена! Перезагрузите компьютер ^_^ и печатайте символы в стиле hypetype
+    } else {
+        RegDelete, HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Keyboard Layout, Scancode Map
+        MsgBox, 64, Всё по плану — но слегка грустненько, «Виртуализация» отключена T_T Перезагрузите компьютер для полного возврата к стандартному Alt
+    }
+    CheckInstalled()
+    UpdateMenuReg()
+}
 
 ; Обновление состояния меню
 UpdateMenuReg() {
@@ -300,8 +308,11 @@ UpdateMenuReg() {
         Menu, Tray, UnCheck, Виртуализация
     }
 }
+    CheckInstalled()
+    UpdateMenuReg()
+return
 
-; Флаг для закрытия программы
+; ==================== Флаг для закрытия программы ====================
 ExitScript:
     ExitApp
 return
