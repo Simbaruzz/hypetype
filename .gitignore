@@ -19,3 +19,5 @@ $RECYCLE.BIN/
 .vscode/
 *.sublime-workspace
 *.sublime-project
+
+config.ini
