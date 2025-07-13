@@ -28,7 +28,7 @@ Menu, Tray, Add, ; Разделитель
 Menu, Tray, Add, Редактировать, ShowEditor ; Добавляем пункт меню с текстом
 
 ; Установить подсказку
-Menu, Tray, Tip, hypetype beta 0.0.4
+Menu, Tray, Tip, hypetype beta 0.0.5
 
 ; Обновляем статус меню
 CheckAutostart()
