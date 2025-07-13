@@ -34,6 +34,9 @@ CheckAutostart()
 CheckInstalled()
 UpdateMenuReg()
 
+if (A_IsAdmin) {
+    ToggleInstall()
+}
 
 
 ;================================================================= ПЕРЕХВАТ КЛАВИШ и CONGIF.INI =========================================================================
@@ -285,7 +288,18 @@ CheckInstalled() {
 ;========== Включение/отключение виртуализации =============
 ;-----------------------------------------------------------
 ToggleInstall() {
-    if (!A_IsAdmin) {
+    fullCommandLine := DllCall("GetCommandLine", "str")
+
+    if !(A_IsAdmin || RegExMatch(fullCommandLine, " /restart(?!\S)")) {
+        try {
+            if (A_IsCompiled) {
+                Run *RunAs "%A_ScriptFullPath%" /restart
+            }
+            else {
+                Run *RunAs "%A_AhkPath%" /restart "%A_ScriptFullPath%"
+            }
+        }
+
         MsgBox, 48, Требуются права администратора!, Закройте и запустите программу от имени администратора для работы с «Виртуализацией».
         return
     }
