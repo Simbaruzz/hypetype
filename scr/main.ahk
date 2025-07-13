@@ -23,6 +23,7 @@ Menu, Tray, Add, Выход, ExitScript
 Menu, Tray, Add, ; Разделитель
 Menu, Tray, Add, Запуск при старте, ToggleAutoStart
 Menu, Tray, Add, Виртуализация, ToggleInstall
+Menu, Tray, Icon, Виртуализация, imageres.dll, 74
 Menu, Tray, Add, ; Разделитель
 Menu, Tray, Add, Редактировать, ShowEditor ; Добавляем пункт меню с текстом
 
