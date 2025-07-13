@@ -1,5 +1,5 @@
 ﻿#NoEnv
-SetWorkingDir %A_ScriptDir% 
+SetWorkingDir %A_ScriptDir%
 #SingleInstance Force
 #Persistent ; Удержание скрипта в памяти
 SendMode Input
@@ -8,11 +8,13 @@ SetTitleMatchMode, 2 ; Установка режима поиска окон
 
 ;=============================================================================== МЕНЮ И ТРЕЙ ===================================================================================
 
-;Для использования в виде скрипта можно юзать эту настройку для иконки
 ;Настроить иконку в трее
-;iconPath := A_Temp "\icon.ico"
-;FileInstall, assets\icon.ico, %iconPath%, 1
-;Menu, Tray, Icon, %iconPath%
+if (!A_IsCompiled) {
+    try {
+        Menu, Tray, Icon, % A_ScriptDir . "\..\assets\icon.ico"
+    }
+}
+
 
 ; ====== Меню в трее и подсказка ======
 
@@ -38,7 +40,7 @@ UpdateMenuReg()
 
 
 ; -------------------------------------------
-; Глобальные переменные 
+; Глобальные переменные
 ; -------------------------------------------
 global configFile := A_ScriptDir "\config.ini"
 global ModifierKey := "vkA9" ; Правый Alt
@@ -87,7 +89,7 @@ NormalizeString(str) {
     if !hDll {
         hDll := DllCall("LoadLibrary", "Str", "Normaliz.dll", "Ptr")
         if !hDll {
-            MsgBox, 16, Error, Не могу загрузить Normaliz.dll — версия Windows устарела! 
+            MsgBox, 16, Error, Не могу загрузить Normaliz.dll — версия Windows устарела!
             return str
         }
         pNormalizeString := DllCall("GetProcAddress", "Ptr", hDll, "AStr", "NormalizeString", "Ptr")
@@ -122,7 +124,7 @@ NormalizeString(str) {
 }
 
 ; -------------------------------------------
-; Основная функция: работа с диакритикой + верхний символ с Shift + нижний только с Alt 
+; Основная функция: работа с диакритикой + верхний символ с Shift + нижний только с Alt
 ; -------------------------------------------
 NumberKey(scanCode) {
     global keyMappings
@@ -152,7 +154,7 @@ NumberKey(scanCode) {
         WaitForNextChar()
         return
     }
-    
+
     ; Если это НЕ диакритика:
     if (g_isDiacriticMode) {
         ; У нас «висит» диакритика — склеим
@@ -235,11 +237,11 @@ ToggleAutostart:
     if (autostartValue = exePath) {
         ; Если программа есть в автозапуске, удаляем из реестра
         RegDelete, HKEY_CURRENT_USER, Software\Microsoft\Windows\CurrentVersion\Run, hypetype
-        
+
     } else {
         ; Если программы нет в автозапуске, добавляем в реестр
         RegWrite, REG_SZ, HKEY_CURRENT_USER, Software\Microsoft\Windows\CurrentVersion\Run, hypetype, %exePath%
-        
+
     }
     CheckAutostart()
 
@@ -325,7 +327,7 @@ vkA9 & Enter::
     Send {LAlt Down}{Enter Down}{Enter Up}{LAlt Up}
 return
 
-;==================== 
+;====================
 
 
 ; -----------------------------------------------------
