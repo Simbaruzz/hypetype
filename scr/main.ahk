@@ -284,10 +284,7 @@ CheckInstalled() {
     }
 }
 
-;-----------------------------------------------------------
-;========== Включение/отключение виртуализации =============
-;-----------------------------------------------------------
-ToggleInstall() {
+RestartAsAdmin() {
     fullCommandLine := DllCall("GetCommandLine", "str")
 
     if !(A_IsAdmin || RegExMatch(fullCommandLine, " /restart(?!\S)")) {
@@ -303,6 +300,13 @@ ToggleInstall() {
         MsgBox, 48, Требуются права администратора!, Закройте и запустите программу от имени администратора для работы с «Виртуализацией».
         return
     }
+}
+
+;-----------------------------------------------------------
+;========== Включение/отключение виртуализации =============
+;-----------------------------------------------------------
+ToggleInstall() {
+    RestartAsAdmin()
 
     if (!Installed) {
         RegWrite, REG_BINARY, HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Keyboard Layout, Scancode Map, 00000000000000000200000068e038e000000000
@@ -311,6 +315,7 @@ ToggleInstall() {
         RegDelete, HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Keyboard Layout, Scancode Map
         MsgBox, 64, Всё по плану — но слегка грустненько, «Виртуализация» отключена T_T Перезагрузите компьютер для полного возврата к стандартному Alt
     }
+
     CheckInstalled()
     UpdateMenuReg()
 }
