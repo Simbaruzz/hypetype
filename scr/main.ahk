@@ -1,18 +1,32 @@
 ﻿#NoEnv
-SetWorkingDir %A_ScriptDir% 
+SetWorkingDir %A_ScriptDir%
 #SingleInstance Force
 #Persistent ; Удержание скрипта в памяти
 SendMode Input
 SetTitleMatchMode, 2 ; Установка режима поиска окон
 
+; -------------------------------------------
+; Глобальные переменные
+; -------------------------------------------
+global configFile := A_ScriptDir "\config.ini"
+global isFreshStart := !FileExist(configFile)
+global ModifierKey := "vkA9" ; Правый Alt
+global keyMappings := {}
+
+; Эти две переменные отвечают за «модальный» ввод диакритики:
+global g_isDiacriticMode := false
+global g_waitingDiacritic := ""
+
 
 ;=============================================================================== МЕНЮ И ТРЕЙ ===================================================================================
 
-;Для использования в виде скрипта можно юзать эту настройку для иконки
 ;Настроить иконку в трее
-;iconPath := A_Temp "\icon.ico"
-;FileInstall, assets\icon.ico, %iconPath%, 1
-;Menu, Tray, Icon, %iconPath%
+if (!A_IsCompiled) {
+    try {
+        Menu, Tray, Icon, % A_ScriptDir . "\..\assets\icon.ico"
+    }
+}
+
 
 ; ====== Меню в трее и подсказка ======
 
@@ -21,32 +35,28 @@ Menu, Tray, Add, Выход, ExitScript
 Menu, Tray, Add, ; Разделитель
 Menu, Tray, Add, Запуск при старте, ToggleAutoStart
 Menu, Tray, Add, Виртуализация, ToggleInstall
+Menu, Tray, Icon, Виртуализация, imageres.dll, 74
 Menu, Tray, Add, ; Разделитель
 Menu, Tray, Add, Редактировать, ShowEditor ; Добавляем пункт меню с текстом
 
 ; Установить подсказку
-Menu, Tray, Tip, hypetype beta 0.0.4
+Menu, Tray, Tip, hypetype beta 0.0.5
 
 ; Обновляем статус меню
 CheckAutostart()
 CheckInstalled()
 UpdateMenuReg()
 
+if (isFreshStart) {
+    RestartAsAdmin()
+}
+
+if (A_IsAdmin && !isFreshStart) {
+    ToggleInstall()
+}
 
 
 ;================================================================= ПЕРЕХВАТ КЛАВИШ и CONGIF.INI =========================================================================
-
-
-; -------------------------------------------
-; Глобальные переменные 
-; -------------------------------------------
-global configFile := A_ScriptDir "\config.ini"
-global ModifierKey := "vkA9" ; Правый Alt
-global keyMappings := {}
-
-; Эти две переменные отвечают за «модальный» ввод диакритики:
-global g_isDiacriticMode := false
-global g_waitingDiacritic := ""
 
 ; -------------------------------------------
 ; Чтение config.ini
@@ -87,7 +97,7 @@ NormalizeString(str) {
     if !hDll {
         hDll := DllCall("LoadLibrary", "Str", "Normaliz.dll", "Ptr")
         if !hDll {
-            MsgBox, 16, Error, Не могу загрузить Normaliz.dll — версия Windows устарела! 
+            MsgBox, 16, Error, Не могу загрузить Normaliz.dll — версия Windows устарела!
             return str
         }
         pNormalizeString := DllCall("GetProcAddress", "Ptr", hDll, "AStr", "NormalizeString", "Ptr")
@@ -122,7 +132,7 @@ NormalizeString(str) {
 }
 
 ; -------------------------------------------
-; Основная функция: работа с диакритикой + верхний символ с Shift + нижний только с Alt 
+; Основная функция: работа с диакритикой + верхний символ с Shift + нижний только с Alt
 ; -------------------------------------------
 NumberKey(scanCode) {
     global keyMappings
@@ -152,7 +162,7 @@ NumberKey(scanCode) {
         WaitForNextChar()
         return
     }
-    
+
     ; Если это НЕ диакритика:
     if (g_isDiacriticMode) {
         ; У нас «висит» диакритика — склеим
@@ -235,11 +245,11 @@ ToggleAutostart:
     if (autostartValue = exePath) {
         ; Если программа есть в автозапуске, удаляем из реестра
         RegDelete, HKEY_CURRENT_USER, Software\Microsoft\Windows\CurrentVersion\Run, hypetype
-        
+
     } else {
         ; Если программы нет в автозапуске, добавляем в реестр
         RegWrite, REG_SZ, HKEY_CURRENT_USER, Software\Microsoft\Windows\CurrentVersion\Run, hypetype, %exePath%
-        
+
     }
     CheckAutostart()
 
@@ -279,12 +289,31 @@ CheckInstalled() {
     }
 }
 
+RestartAsAdmin() {
+    fullCommandLine := DllCall("GetCommandLine", "str")
+
+    if !(A_IsAdmin || RegExMatch(fullCommandLine, " /restart(?!\S)")) {
+        try {
+            if (A_IsCompiled) {
+                Run *RunAs "%A_ScriptFullPath%" /restart
+            }
+            else {
+                Run *RunAs "%A_AhkPath%" /restart "%A_ScriptFullPath%"
+            }
+        }
+
+        MsgBox, 48, Требуются права администратора!, Закройте и запустите программу от имени администратора для работы с «Виртуализацией».
+        return
+    }
+}
+
 ;-----------------------------------------------------------
 ;========== Включение/отключение виртуализации =============
 ;-----------------------------------------------------------
 ToggleInstall() {
+    RestartAsAdmin()
+
     if (!A_IsAdmin) {
-        MsgBox, 48, Требуются права администратора!, Закройте и запустите программу от имени администратора для работы с «Виртуализацией».
         return
     }
 
@@ -295,6 +324,7 @@ ToggleInstall() {
         RegDelete, HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Keyboard Layout, Scancode Map
         MsgBox, 64, Всё по плану — но слегка грустненько, «Виртуализация» отключена T_T Перезагрузите компьютер для полного возврата к стандартному Alt
     }
+
     CheckInstalled()
     UpdateMenuReg()
 }
@@ -325,7 +355,7 @@ vkA9 & Enter::
     Send {LAlt Down}{Enter Down}{Enter Up}{LAlt Up}
 return
 
-;==================== 
+;====================
 
 
 ; -----------------------------------------------------
