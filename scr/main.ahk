@@ -313,6 +313,10 @@ RestartAsAdmin() {
 ToggleInstall() {
     RestartAsAdmin()
 
+    if (!A_IsAdmin) {
+        return
+    }
+
     if (!Installed) {
         RegWrite, REG_BINARY, HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Keyboard Layout, Scancode Map, 00000000000000000200000068e038e000000000
         MsgBox, 64, Всё Чикаго!, «Вирутализация» включена! Перезагрузите компьютер ^_^ и печатайте символы в стиле hypetype
