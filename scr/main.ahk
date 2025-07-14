@@ -9,6 +9,7 @@ SetTitleMatchMode, 2 ; Установка режима поиска окон
 ; Глобальные переменные
 ; -------------------------------------------
 global configFile := A_ScriptDir "\config.ini"
+global isFreshStart := !FileExist(configFile)
 global ModifierKey := "vkA9" ; Правый Alt
 global keyMappings := {}
 
@@ -46,7 +47,11 @@ CheckAutostart()
 CheckInstalled()
 UpdateMenuReg()
 
-if (A_IsAdmin) {
+if (isFreshStart) {
+    RestartAsAdmin()
+}
+
+if (A_IsAdmin && !isFreshStart) {
     ToggleInstall()
 }
 
