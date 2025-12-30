@@ -6,7 +6,7 @@
 - с возможностью настройки символов через интерфейс
 - без конфликтов со стандартными сочетаниями клавиш в других программах
 
-[Скачать](https://github.com/Simbaruzz/hypetype/releases/latest/download/hypetype.exe) · [Глянуть обзор↗](https://youtu.be/UjZb-TLLQCc)
+[Скачать Win ↓](https://github.com/Simbaruzz/hypetype/releases/latest/download/hypetype.exe) · Скачать MacOS (скоро) · [Глянуть обзор↗](https://youtu.be/UjZb-TLLQCc)
 
 
 <br>
@@ -26,7 +26,7 @@
 ### Минусы
 - при первом запуске потребуются права администратора и перезагрузка
 - правый Alt будет не совсем правый Alt — подробнее в FAQ
-- только для Windows
+
 
 <br>
 
