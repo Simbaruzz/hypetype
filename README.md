@@ -1,4 +1,4 @@
-![hypetype-preview-test](https://s12.gifyu.com/images/bksG5.md.gif)
+![hypetype-preview-test](https://s12.gifyu.com/images/bksG5.gif)
 
 # Печатайте любые символы напрямую с клавиатуры
 
