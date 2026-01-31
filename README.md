@@ -6,7 +6,7 @@
 - с возможностью настройки символов через интерфейс
 - без конфликтов со стандартными сочетаниями клавиш в других программах
 
-[Скачать Win ↓](https://github.com/Simbaruzz/hypetype/releases/latest/download/hypetype.exe) · Скачать MacOS (скоро) · [Глянуть обзор↗](https://youtu.be/UjZb-TLLQCc)
+[Скачать Win ↓](https://github.com/Simbaruzz/hypetype/releases/latest/download/hypetype.exe) · [Версия macOS ↗](htts://github.com/Simbaruzz/hypetype-mac/) · [Глянуть обзор↗](https://youtu.be/UjZb-TLLQCc)
 
 
 <br>
