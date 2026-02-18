@@ -68,7 +68,7 @@ defaultMapping := { "SC002": ["¹", "¡"]
                  , "SC005": ["$", "¼"]
                  , "SC006": ["‰", " "]
                  , "SC007": ["↑", "̂"]      ; Combining Circumflex Accent
-                 , "SC008": ["` ", "¿"]
+                 , "SC008": ["↗", "¿"]
                  , "SC009": ["∞", " "]
                  , "SC00A": ["←", "‹"]
                  , "SC00B": ["→", "›"]
@@ -103,11 +103,11 @@ defaultMapping := { "SC002": ["¹", "¡"]
                  , "SC02E": ["©", "¢"]
                  , "SC02F": ["↓", "̌"]      ; Combining Caron
                  , "SC030": ["ß", "ẞ"]
-                 , "SC031": ["` ", "̃"]      ; Combining Tilde · N
+                 , "SC031": ["№", "̃"]      ; Combining Tilde · N
                  , "SC032": ["−", "•"]
                  , "SC033": ["«", "„"]
                  , "SC034": ["»", "“"]      ; dot
-                 , "SC035": ["` ", "́"]      ; Combining Acute Accent
+                 , "SC035": ["…", "́"]      ; Combining Acute Accent
                  , "SC039": ["` ", "` "]    ; пробел
                  , "SC029": ["", "``"] }   ; тильда
 
