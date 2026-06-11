@@ -19,7 +19,9 @@ class KeyInput {
         SetKeyDelay(-1)
         for w3cName in Config.Keys() {
             sc := Config.W3C_TO_SC[w3cName]
-            Hotkey(this.MODIFIER " & " sc, this.OnSymbolKey.Bind(w3cName))
+            ; ObjBindMethod привязывает и this (=KeyInput), и w3cName корректно.
+            ; (Class.StaticMethod как значение в v2 отдаётся БЕЗ this — простой .Bind ломается.)
+            Hotkey(this.MODIFIER " & " sc, ObjBindMethod(this, "OnSymbolKey", w3cName))
         }
         ; Alt+Enter работает как обычный системный Alt+Enter (фича v1)
         Hotkey(this.MODIFIER " & Enter", (*) => Send("{LAlt down}{Enter}{LAlt up}"))
