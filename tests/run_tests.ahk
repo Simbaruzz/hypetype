@@ -1,6 +1,7 @@
 #Requires AutoHotkey v2.0
 #Include ..\src\config.ahk
 #Include ..\src\registry.ahk
+#Include ..\src\input.ahk
 
 ; =============================================================================
 ;  Автотесты чистых функций config.ahk (PLAN.md §8.1).
@@ -272,6 +273,20 @@ AssertEq(ScancodeMap.ClassifyEntries([{new: 0xE068, orig: 0xE038}]), "ours", "cl
 AssertEq(ScancodeMap.ClassifyEntries([{new: 0x0000, orig: 0xE038}]), "foreign-ralt", "classify: правый Alt занят другим -> foreign-ralt")
 AssertEq(ScancodeMap.ClassifyEntries([{new: 0x001D, orig: 0x003A}]), "other", "classify: other")
 AssertEq(ScancodeMap.ClassifyEntries([]), "other", "classify: пусто -> other")
+
+; ---------------------------------------------------------------------------
+;  8. input.ahk: детектор диакритики и нормализация NFC (PLAN.md §4)
+; ---------------------------------------------------------------------------
+Assert(KeyInput.IsSingleCombining(Chr(0x0301)), "диакритика: одиночный combining acute -> true")
+Assert(KeyInput.IsSingleCombining(Chr(0x030C)), "диакритика: одиночный combining caron -> true")
+Assert(!KeyInput.IsSingleCombining("a"), "диакритика: обычная буква -> false")
+Assert(!KeyInput.IsSingleCombining(""), "диакритика: пусто -> false")
+Assert(!KeyInput.IsSingleCombining(Chr(0x0301) Chr(0x0302)), "диакритика: две метки -> false (выводится напрямую)")
+Assert(!KeyInput.IsSingleCombining(Chr(0x0041)), "диакритика: 'A' (вне диапазона) -> false")
+
+AssertEq(KeyInput.NormalizeNFC("e" Chr(0x0301)), Chr(0x00E9), "NFC: e + ◌́ -> é")
+AssertEq(KeyInput.NormalizeNFC("g" Chr(0x030C)), Chr(0x01E7), "NFC: g + ◌̌ -> ǧ (пример из плана)")
+AssertEq(KeyInput.NormalizeNFC("abc"), "abc", "NFC: ASCII без изменений")
 
 ; ---------------------------------------------------------------------------
 ;  Итог
