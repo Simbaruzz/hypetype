@@ -1,7 +1,9 @@
 #Requires AutoHotkey v2.0
+#Include ..\src\strings.ahk
 #Include ..\src\config.ahk
 #Include ..\src\registry.ahk
 #Include ..\src\input.ahk
+#Include ..\src\editor.ahk
 
 ; =============================================================================
 ;  Автотесты чистых функций config.ahk (PLAN.md §8.1).
@@ -287,6 +289,26 @@ Assert(!KeyInput.IsSingleCombining(Chr(0x0041)), "диакритика: 'A' (в�
 AssertEq(KeyInput.NormalizeNFC("e" Chr(0x0301)), Chr(0x00E9), "NFC: e + ◌́ -> é")
 AssertEq(KeyInput.NormalizeNFC("g" Chr(0x030C)), Chr(0x01E7), "NFC: g + ◌̌ -> ǧ (пример из плана)")
 AssertEq(KeyInput.NormalizeNFC("abc"), "abc", "NFC: ASCII без изменений")
+
+; ---------------------------------------------------------------------------
+;  9. editor.ahk: чистые помощники (PLAN.md §5)
+; ---------------------------------------------------------------------------
+AssertEq(Editor.CpCount("abc"), 3, "editor: CpCount ASCII")
+AssertEq(Editor.CpCount(Chr(0x1F60E)), 1, "editor: CpCount эмодзи = 1 кодпоинт (не 2 code units)")
+AssertEq(Editor.CpCount(Chr(0x1F60E) Chr(0x1F60E) "a"), 3, "editor: CpCount два эмодзи + ASCII")
+AssertEq(Editor.CpCount(""), 0, "editor: CpCount пусто = 0")
+
+cp33 := ""
+Loop 33
+    cp33 .= Chr(0x1F60E)
+Assert(Editor.CpCount(cp33) > 32, "editor: 33 эмодзи считаются как >32 кодпоинтов")
+
+AssertEq(Editor.Sanitize("a`r`nb"), "ab", "editor: Sanitize убирает CR/LF")
+AssertEq(Editor.Sanitize("a,b|c=d;e"), "a,b|c=d;e", "editor: Sanitize не трогает ,|=;")
+
+AssertEq(Editor.ButtonRepr(""), "", "editor: ButtonRepr пусто -> ''")
+AssertEq(Editor.ButtonRepr(Chr(0x0301)), Chr(0x25CC) Chr(0x0301), "editor: ButtonRepr диакритика на ◌")
+Assert(InStr(Editor.ButtonRepr("12345"), "…"), "editor: ButtonRepr длинной строки усечён с …")
 
 ; ---------------------------------------------------------------------------
 ;  Итог

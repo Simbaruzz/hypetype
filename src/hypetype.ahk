@@ -1,49 +1,16 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 
+#Include strings.ahk
 #Include config.ahk
 #Include registry.ahk
 #Include input.ahk
-; #Include editor.ahk   ; включится на шаге 6
+#Include editor.ahk
 
 Persistent
 
 ; Единственная константа версии приложения (PLAN.md §1).
 global APP_VERSION := "0.1.0"
-
-; =============================================================================
-;  Все пользовательские строки — одним блоком (задел под локализацию, §1).
-; =============================================================================
-class Txt {
-    static MenuExit       := "Выход"
-    static MenuAutostart  := "Запуск при старте"
-    static MenuVirtualize := "Виртуализация"
-    static MenuEditor     := "Редактировать"
-
-    static NoAdminTitle := "Требуются права администратора!"
-    static NoAdminBody  := "Закройте и запустите программу от имени администратора для работы с «Виртуализацией»."
-
-    static EnabledTitle := "Всё Чикаго!"
-    static EnabledBody  := "«Виртуализация» включена! Перезагрузите компьютер ^_^ и печатайте символы в стиле hypetype."
-
-    static DisabledTitle := "Всё по плану — но слегка грустненько"
-    static DisabledBody  := "«Виртуализация» отключена T_T Перезагрузите компьютер для полного возврата к стандартному Alt."
-
-    static ForeignTitle := "Правый Alt уже занят"
-    static ForeignBody  := "Правый Alt уже переназначен другой программой. hypetype не будет это перезаписывать."
-
-    static BadBlobTitle := "Не удалось прочитать реестр"
-    static BadBlobBody  := "Текущий Scancode Map повреждён или нечитаем — ничего не изменено."
-
-    static AlreadyOnTitle  := "Уже включено"
-    static AlreadyOnBody   := "«Виртуализация» уже активна."
-    static AlreadyOffTitle := "Уже выключено"
-    static AlreadyOffBody  := "«Виртуализация» и так не активна."
-
-    static BackupLine := "`n`nРезервная копия реестра (для отката двойным кликом):`n"
-
-    static EditorStub := "Редактор раскладки появится на следующем шаге."
-}
 
 ; =============================================================================
 ;  Инициализация — явная, линейная, в одном месте (PLAN.md §6).
@@ -117,6 +84,5 @@ ShowVirtualizationResult(res) {
 }
 
 ShowEditor(*) {
-    ; Шаг 6: заменить на Editor.Show()
-    MsgBox(Txt.EditorStub, "hypetype", "Iconi")
+    Editor.Show()
 }
