@@ -16,6 +16,13 @@ class Typograph {
     ; закрытый список для диапазонов месяцев/дней (G2): оба слова из списка
     static RANGE_WORDS := "январь|февраль|март|апрель|май|июнь|июль|август|сентябрь|октябрь|ноябрь|декабрь|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье"
 
+    ; валютные токены (G6): символ -> regex-альтернатива (без захватывающих групп)
+    static CUR := Map(
+        "₽", "₽|(?<![А-Яа-яЁё])руб\.?(?![А-Яа-яЁё])|(?<![А-Яа-яЁё])р\.|(?<![A-Za-z])(?:RUR|RUB)(?![A-Za-z])",
+        "$", "\$|(?<![A-Za-z])USD(?![A-Za-z])",
+        "€", "€|(?<![A-Za-z])EUR(?![A-Za-z])"
+    )
+
     ; Настройки по умолчанию (§7): все группы включены.
     static DefaultSettings() {
         return Map(
@@ -203,8 +210,89 @@ class Typograph {
     ; =========================================================================
     ;  Заглушки групп — реализуются по очереди (§10). Пока тождество.
     ; =========================================================================
-    static Numbers(text, settings) => text ; G6 — далее
     static Nbsp(text) => text            ; G5 — далее
+
+    ; =========================================================================
+    ;  G6. Numbers — числа и валюта (§5). Группировка разрядов — процедурой.
+    ; =========================================================================
+    static Numbers(text, settings) {
+        nb := this.U_NBSP
+        before := (settings["CurrencyPosition"] = "before")
+        text := this.MergeKopecks(text)
+        text := this.NormalizeCurrency(text, before)
+        ; величины: тыс. с точкой; млн/млрд/трлн без точки; НБ перед словом
+        text := RegExReplace(text, "i)(\d)[\x20\xA0]*тыс\.?(?![А-Яа-яЁё])", "$1" nb "тыс.")
+        text := RegExReplace(text, "i)(\d)[\x20\xA0]*(млн|млрд|трлн)\.?(?![А-Яа-яЁё])", "$1" nb "$2")
+        return text
+    }
+
+    ; 45 руб. 5 коп. -> 45,05 ₽
+    static MergeKopecks(text) {
+        nb := this.U_NBSP
+        pos := 1
+        while RegExMatch(text, "i)(\d+)[\x20\xA0]*руб\.?[\x20\xA0]*(\d+)[\x20\xA0]*коп\.?", &m, pos) {
+            rep := m[1] "," Format("{:02}", Integer(m[2])) nb "₽"
+            text := SubStr(text, 1, m.Pos - 1) rep SubStr(text, m.Pos + m.Len)
+            pos := m.Pos + StrLen(rep)
+        }
+        return text
+    }
+
+    ; Нормализация "<число><валюта>" и "<валюта><число>" в любом порядке.
+    static NormalizeCurrency(text, before) {
+        nb := this.U_NBSP
+        numPat := "(\d[\d.,\xA0]*\d|\d)"
+        for symbol, pat in this.CUR {
+            ; число затем валюта
+            pos := 1
+            while RegExMatch(text, "i)" numPat "[\x20\xA0]*(?:" pat ")", &m, pos) {
+                money := this.FormatMoney(m[1])
+                rep := before ? (symbol nb money) : (money nb symbol)
+                text := SubStr(text, 1, m.Pos - 1) rep SubStr(text, m.Pos + m.Len)
+                pos := m.Pos + StrLen(rep)
+            }
+            ; валюта затем число
+            pos := 1
+            while RegExMatch(text, "i)(?:" pat ")[\x20\xA0]*" numPat, &m, pos) {
+                money := this.FormatMoney(m[1])
+                rep := before ? (symbol nb money) : (money nb symbol)
+                text := SubStr(text, 1, m.Pos - 1) rep SubStr(text, m.Pos + m.Len)
+                pos := m.Pos + StrLen(rep)
+            }
+        }
+        return text
+    }
+
+    ; Форматирование суммы: убрать разряды, точка->запятая, сгруппировать (>=5 цифр).
+    static FormatMoney(numRaw) {
+        s := RegExReplace(numRaw, "[\x20\xA0]", "")        ; снять разделители разрядов
+        frac := ""
+        if RegExMatch(s, "^(\d+)[.,](\d+)$", &mm) {
+            intPart := mm[1]
+            frac := mm[2]
+        } else {
+            intPart := RegExReplace(s, "[^\d]", "")
+        }
+        if (StrLen(intPart) >= 5)
+            intPart := this.GroupDigits(intPart)
+        return (frac != "") ? (intPart "," frac) : intPart
+    }
+
+    ; Вставить НБ как разделитель тысяч (по 3 разряда справа).
+    static GroupDigits(digits) {
+        nb := this.U_NBSP
+        out := ""
+        cnt := 0
+        i := StrLen(digits)
+        while (i >= 1) {
+            out := SubStr(digits, i, 1) out
+            cnt++
+            if (Mod(cnt, 3) = 0 && i > 1)
+                out := nb out
+            i--
+        }
+        return out
+    }
 
     ; =========================================================================
     ;  G2. Dashes — тире (§5)

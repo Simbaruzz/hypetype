@@ -384,8 +384,23 @@ TypoNeg("по-русски", "G2 негатив: висячий дефис по-
 TypoNeg("12-05-2024", "G2 негатив: дата")
 TypoNeg("2002" EN "2009", "G2 негатив: уже среднее тире")
 
+; G6 — числа и валюта
+TypoCase("$ 109", "109" NB "$", "G6 знак до числа -> после с НБ")
+TypoCase("109$", "109" NB "$", "G6 знак слитно -> через НБ")
+TypoCase("20usd", "20" NB "$", "G6 код usd -> $")
+TypoCase("2345123 $", "2" NB "345" NB "123" NB "$", "G6 группировка разрядов")
+TypoCase("143.56 $", "143,56" NB "$", "G6 десятичная точка -> запятая")
+TypoCase("100 руб.", "100" NB "₽", "G6 руб -> знак рубля")
+TypoCase("45 руб. 5 коп.", "45,05" NB "₽", "G6 копейки в сумму")
+TypoCase("5 тыс.", "5" NB "тыс.", "G6 тыс с точкой + НБ")
+TypoCase("10 млн.", "10" NB "млн", "G6 млн без точки + НБ")
+TypoCase("109$", "$" NB "109", "G6 позиция before", SettingsWith(Map("CurrencyPosition", "before")))
+TypoNeg("2.5.1", "G6 негатив: версия не валюта")
+TypoNeg("2026", "G6 негатив: год без валюты не группируется")
+
 ; Тумблеры
 TypoCase("2002-2009", "2002-2009", "тумблер: Dashes off", SettingsWith(Map("Dashes", false)))
+TypoCase("109$", "109$", "тумблер: Numbers off", SettingsWith(Map("Numbers", false)))
 TypoCase("Текст...", "Текст...", "тумблер: Punct off", SettingsWith(Map("Punct", false)))
 TypoCase("«сказал " Chr(0x22) "да" Chr(0x22) "»", "«сказал " Chr(0x22) "да" Chr(0x22) "»", "тумблер: Quotes off", SettingsWith(Map("Quotes", false)))
 TypoCase("(c)", "(c)", "тумблер: Symbols off", SettingsWith(Map("Symbols", false)))
