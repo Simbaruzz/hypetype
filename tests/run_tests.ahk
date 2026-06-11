@@ -357,8 +357,24 @@ TypoCase("текст , точка", "текст, точка", "G4 пробел �
 TypoCase("23 %", "23%", "G4 процент слитно (дефолт)")
 TypoCase("a  b   c", "a b c", "G4 двойные пробелы схлопнуты")
 
+; G1 — кавычки (автомат §4)
+DQ := Chr(0x22)      ; "
+SQ := Chr(0x27)      ; '
+APO := Chr(0x2019)   ; ’
+TypoCase(DQ "привет" DQ, "«привет»", "G1 простые кавычки")
+TypoCase("«сказал " DQ "да" DQ "»", "«сказал „да“»", "G1 вложенные кавычки")
+TypoCase(DQ "Монитор 21" DQ DQ, "«Монитор 21" DQ "»", "G1 дюйм внутри ёлочек")
+TypoCase(DQ "-" DQ, "«-»", "G1 кавычки вокруг дефиса")
+TypoCase("it" SQ "s", "it" APO "s", "G1 апостроф its")
+TypoCase("d" SQ "Artagnan", "d" APO "Artagnan", "G1 апостроф dArtagnan")
+TypoCase("«деньги.»", "«деньги».", "G1 точка за закрывающую кавычку")
+TypoNeg("5" SQ "10" DQ, "G1 негатив: штрихи 5-10")
+TypoNeg("диагональ 27" DQ, "G1 негатив: дюйм 27 после цифры")
+TypoNeg("«сказал „да“»", "G1 негатив: уже вложенные ёлочки")
+
 ; Тумблеры
 TypoCase("Текст...", "Текст...", "тумблер: Punct off", SettingsWith(Map("Punct", false)))
+TypoCase("«сказал " Chr(0x22) "да" Chr(0x22) "»", "«сказал " Chr(0x22) "да" Chr(0x22) "»", "тумблер: Quotes off", SettingsWith(Map("Quotes", false)))
 TypoCase("(c)", "(c)", "тумблер: Symbols off", SettingsWith(Map("Symbols", false)))
 TypoCase("менее,меньше", "менее,меньше", "тумблер: SpaceClean off", SettingsWith(Map("SpaceClean", false)))
 TypoCase("23 %", "23" Chr(0x202F) "%", "тумблер: PercentSpace=narrow", SettingsWith(Map("PercentSpace", "narrow")))

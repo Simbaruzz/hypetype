@@ -100,9 +100,106 @@ class Typograph {
     }
 
     ; =========================================================================
+    ;  G1. Quotes — автомат кавычек (§4). Однопроходный КА по строке.
+    ;  Состояние depth: 0 вне кавычек, 1 внутри «…», 2 внутри „…“; глубже — " как есть.
+    ; =========================================================================
+    static Quotes(text) {
+        DQ := Chr(0x22), SQ := Chr(0x27)
+        chars := StrSplit(text)
+        n := chars.Length
+        out := ""
+        depth := 0
+        i := 1
+        while (i <= n) {
+            ch := chars[i]
+            prev := (i > 1) ? chars[i - 1] : ""
+            next := (i < n) ? chars[i + 1] : ""
+            switch ch {
+                case "«":
+                    depth := 1
+                    out .= ch
+                case "„":
+                    depth := 2
+                    out .= ch
+                case "»":
+                    depth := 0
+                    out .= ch
+                case "“":
+                    depth := 1
+                    out .= ch
+                case DQ:
+                    out .= this.ClassifyDQuote(prev, next, &depth)
+                case SQ:
+                    ; апостроф внутри латинского слова -> ’; штрихи/прочее не трогаем
+                    out .= (this.IsLatin(prev) && this.IsLatin(next)) ? Chr(0x2019) : ch
+                default:
+                    out .= ch
+            }
+            i++
+        }
+        ; после автомата: точка/запятая за закрывающую кавычку (§4)
+        out := RegExReplace(out, "([.,])([»“])", "$2$1")
+        return out
+    }
+
+    static ClassifyDQuote(prev, next, &depth) {
+        if (this.IsDigit(prev))                         ; дюйм-эвристика (приоритет): 21" 27"
+            return Chr(0x22)
+        beforeOpen := (prev = "" || this.IsSpace(prev) || prev = "(" || prev = "[" || this.IsDash(prev))
+        afterClose := (next = "" || this.IsSpace(next) || this.IsCloseAfter(next))
+        afterNonSpace := (next != "" && !this.IsSpace(next))
+        beforeNonSpace := (prev != "" && !this.IsSpace(prev))
+
+        if (beforeOpen && afterNonSpace)
+            opening := true
+        else if (beforeNonSpace && afterClose)
+            opening := false
+        else
+            opening := (depth = 0)                      ; неоднозначно -> по состоянию
+
+        if (opening) {
+            if (depth = 0) {
+                depth := 1
+                return "«"
+            } else if (depth = 1) {
+                depth := 2
+                return "„"
+            }
+            return Chr(0x22)                             ; глубже 2 — не трогаем
+        } else {
+            if (depth = 2) {
+                depth := 1
+                return "“"
+            } else if (depth = 1) {
+                depth := 0
+                return "»"
+            }
+            return Chr(0x22)                             ; нечего закрывать
+        }
+    }
+
+    static IsDigit(c) {
+        return (c != "" && Ord(c) >= 0x30 && Ord(c) <= 0x39)
+    }
+    static IsLatin(c) {
+        if (c = "")
+            return false
+        o := Ord(c)
+        return (o >= 0x41 && o <= 0x5A) || (o >= 0x61 && o <= 0x7A)
+    }
+    static IsSpace(c) {
+        return (c = " " || c = "`t" || c = "`n" || c = "`r")
+    }
+    static IsDash(c) {
+        return (c = "-" || c = Chr(0x2013) || c = Chr(0x2014))
+    }
+    static IsCloseAfter(c) {
+        return (c != "" && InStr(".…:,;?!)]»“", c) > 0)
+    }
+
+    ; =========================================================================
     ;  Заглушки групп — реализуются по очереди (§10). Пока тождество.
     ; =========================================================================
-    static Quotes(text) => text          ; G1 (§4) — далее
     static Dashes(text) => text          ; G2 — далее
     static Numbers(text, settings) => text ; G6 — далее
     static Nbsp(text) => text            ; G5 — далее
