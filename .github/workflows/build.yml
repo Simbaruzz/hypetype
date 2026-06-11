@@ -1,40 +1,77 @@
-name: Build HypeType
+name: Build hypetype
 
 on:
   release:
     types: [created]
+  workflow_dispatch:        # ручной запуск для проверки сборки без релиза
 
 permissions:
   contents: write
 
+env:
+  # Проверенные релизы (июнь 2026). Бампить здесь.
+  AHK_VERSION: "2.0.26"                  # AutoHotkey/AutoHotkey
+  AHK2EXE_TAG: "Ahk2Exe1.1.37.02a2"      # AutoHotkey/Ahk2Exe
+
 jobs:
   build:
     runs-on: windows-latest
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download AutoHotkey Portable
+      - name: Скачать AutoHotkey v2 (portable)
         shell: pwsh
         run: |
-          Write-Host "Downloading AutoHotkey v1.1 Portable..."
-          Invoke-WebRequest -Uri "https://github.com/AutoHotkey/AutoHotkey/releases/download/v1.1.37.02/AutoHotkey_1.1.37.02.zip" -OutFile "AutoHotkey.zip"
-          Expand-Archive -Path "AutoHotkey.zip" -DestinationPath "AutoHotkey"
-          Write-Host "AutoHotkey Portable extracted successfully"
+          $url = "https://github.com/AutoHotkey/AutoHotkey/releases/download/v${env:AHK_VERSION}/AutoHotkey_${env:AHK_VERSION}.zip"
+          Write-Host "Downloading $url"
+          Invoke-WebRequest -Uri $url -OutFile ahk2.zip
+          Expand-Archive ahk2.zip -DestinationPath ahk2 -Force
+          $exe = Get-ChildItem ahk2 -Recurse -Filter AutoHotkey64.exe | Select-Object -First 1
+          if (-not $exe) { throw "AutoHotkey64.exe не найден в архиве" }
+          "AHK_EXE=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "AHK_EXE=$($exe.FullName)"
 
-      - name: Compile AHK to EXE
+      - name: Скачать Ahk2Exe (компилятор v2)
         shell: pwsh
         run: |
-          Write-Host "Starting compilation..."
-          $sourcePath = Join-Path -Path $pwd -ChildPath "scr\main.ahk"
-          $outputPath = Join-Path -Path $pwd -ChildPath "scr\hypetype.exe"
-          & ".\AutoHotkey\Compiler\Ahk2Exe.exe" /in "$sourcePath" /out "$outputPath" /icon "assets\icon.ico" /base ".\AutoHotkey\AutoHotkeyU32.exe"
-          Write-Host "Output path is: $outputPath"
-          if (Test-Path $outputPath) {
-              Write-Host "File created successfully!"
-          }
+          $url = "https://github.com/AutoHotkey/Ahk2Exe/releases/download/${env:AHK2EXE_TAG}/${env:AHK2EXE_TAG}.zip"
+          Write-Host "Downloading $url"
+          Invoke-WebRequest -Uri $url -OutFile ahk2exe.zip
+          Expand-Archive ahk2exe.zip -DestinationPath ahk2exe -Force
+          $c = Get-ChildItem ahk2exe -Recurse -Filter Ahk2Exe.exe | Select-Object -First 1
+          if (-not $c) { throw "Ahk2Exe.exe не найден в архиве" }
+          "AHK2EXE=$($c.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "AHK2EXE=$($c.FullName)"
 
-      - name: Upload Release Asset
-        uses: softprops/action-gh-release@v1
+      - name: Автотесты (должны пройти до сборки)
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath $env:AHK_EXE `
+                 -ArgumentList '/ErrorStdOut', 'tests\run_tests.ahk' `
+                 -Wait -PassThru -RedirectStandardError test_stderr.txt
+          if (Test-Path tests\_last_run.log) { Get-Content tests\_last_run.log -Encoding utf8 }
+          $err = if (Test-Path test_stderr.txt) { Get-Content test_stderr.txt -Raw } else { "" }
+          if ($err) { Write-Host "STDERR: $err" }
+          if ($p.ExitCode -ne 0) { throw "Тесты провалены (exit $($p.ExitCode))" }
+          Write-Host "Тесты пройдены."
+
+      - name: Скомпилировать hypetype.exe
+        shell: pwsh
+        run: |
+          $ahkArgs = @('/in', 'src\hypetype.ahk', '/out', 'hypetype.exe',
+                       '/icon', 'assets\icon.ico', '/base', $env:AHK_EXE)
+          $p = Start-Process -FilePath $env:AHK2EXE -ArgumentList $ahkArgs -Wait -PassThru
+          if (-not (Test-Path hypetype.exe)) { throw "Сборка не удалась: hypetype.exe не создан (Ahk2Exe exit $($p.ExitCode))" }
+          Write-Host "Готово: hypetype.exe (Ahk2Exe exit $($p.ExitCode))"
+
+      - name: Прикрепить exe к релизу
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
         with:
-          files: ./scr/hypetype.exe
+          files: hypetype.exe
+
+      - name: Артефакт сборки (для ручных запусков)
+        uses: actions/upload-artifact@v4
+        with:
+          name: hypetype
+          path: hypetype.exe

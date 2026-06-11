@@ -20,6 +20,9 @@ tests/_last_run.log
 tests/_stderr.txt
 tests/_integration/
 
+# Локальная сборка
+build_test/
+
 # IDE and editor files
 .vscode/
 *.sublime-workspace
