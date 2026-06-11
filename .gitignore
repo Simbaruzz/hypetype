@@ -23,6 +23,12 @@ tests/_integration/
 # Локальная сборка
 build_test/
 
+# Артефакты запуска hypetype из src/ во время разработки
+# (корневой config.ini трекается намеренно — как образец миграции)
+/src/config.ini
+/src/config.old.ini
+/src/scancode-backup.reg
+
 # IDE and editor files
 .vscode/
 *.sublime-workspace
