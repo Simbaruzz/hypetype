@@ -95,7 +95,8 @@ class Editor {
         altEdit := eg.AddEdit("w" wfld " h" hfld, k.alt)
 
         eg.SetFont("s14", this._font)
-        saveBtn := eg.AddButton("w" wfld, Txt.EditSave)
+        hsave := Round(hfld * 0.8)            ; высота кнопки пропорционально полю (DPI-friendly)
+        saveBtn := eg.AddButton("w" wfld " h" hsave, Txt.EditSave)
         saveBtn.OnEvent("Click", (*) => this.OnSave(w3cName, eg, altEdit.Value, shiftEdit.Value))
 
         eg.Show()
