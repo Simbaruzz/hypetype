@@ -15,6 +15,11 @@ $RECYCLE.BIN/
 *._temp
 *.temp
 
+# Test/run scratch (артефакты прогона тестов, см. tests/run_tests.ahk)
+tests/_last_run.log
+tests/_stderr.txt
+tests/_integration/
+
 # IDE and editor files
 .vscode/
 *.sublime-workspace
