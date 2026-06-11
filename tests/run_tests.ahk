@@ -1,5 +1,6 @@
 #Requires AutoHotkey v2.0
 #Include ..\src\config.ahk
+#Include ..\src\registry.ahk
 
 ; =============================================================================
 ;  Автотесты чистых функций config.ahk (PLAN.md §8.1).
@@ -225,6 +226,52 @@ pDigit2 := InStr(ddOut, "`nDigit2=")
 pBackslash := InStr(ddOut, "`nBackslash=")
 Assert(pDigit1 > 0 && pDigit1 < pDigit2, "порядок: Digit1 раньше Digit2")
 Assert(pDigit1 < pBackslash, "порядок: Digit1 раньше Backslash (порядок §5, не алфавит)")
+
+; ---------------------------------------------------------------------------
+;  7. Scancode Map: чистые функции блоба (PLAN.md §3.1, §8.1)
+; ---------------------------------------------------------------------------
+REF_OURS := "00000000000000000200000068E038E000000000"
+
+AssertEq(BuildScancodeMap([{new: 0xE068, orig: 0xE038}]), REF_OURS, "blob: build нашей записи = эталон")
+
+oe := ParseScancodeMap(REF_OURS)
+AssertEq(oe.Length, 1, "blob: эталон -> 1 запись")
+AssertEq(oe[1].new, 0xE068, "blob: new = E068")
+AssertEq(oe[1].orig, 0xE038, "blob: orig = E038")
+AssertEq(BuildScancodeMap(oe), REF_OURS, "blob: round-trip parse->build")
+
+; нулевой блоб (0 записей)
+AssertEq(ParseScancodeMap("00000000000000000100000000000000").Length, 0, "blob: нулевой -> []")
+AssertEq(BuildScancodeMap([]), "00000000000000000100000000000000", "blob: build([]) -> нулевой блоб")
+
+; чужая запись (CapsLock 3A -> LCtrl 1D) + добавление нашей
+foreignBlob := BuildScancodeMap([{new: 0x001D, orig: 0x003A}])
+fe := ParseScancodeMap(foreignBlob)
+AssertEq(fe.Length, 1, "blob: чужая запись распарсилась")
+AssertEq(ScancodeMap.ClassifyEntries(fe), "other", "blob: только чужая -> other")
+fe.Push({new: 0xE068, orig: 0xE038})
+me := ParseScancodeMap(BuildScancodeMap(fe))
+AssertEq(me.Length, 2, "blob: добавили нашу -> 2 записи")
+AssertEq(ScancodeMap.ClassifyEntries(me), "ours", "blob: смешанный с нашей -> ours")
+
+; удаление только нашей из смешанного
+kept := []
+for e in me
+    if !(e.orig = 0xE038 && e.new = 0xE068)
+        kept.Push(e)
+AssertEq(kept.Length, 1, "blob: удалили нашу -> осталась чужая")
+AssertEq(kept[1].orig, 0x003A, "blob: уцелела именно чужая (CapsLock)")
+
+; обрезанный/невалидный -> отказ
+Assert(Throws(() => ParseScancodeMap("0000")), "blob: обрезанный -> исключение")
+Assert(Throws(() => ParseScancodeMap(SubStr(REF_OURS, 1, 38))), "blob: длина != count -> исключение")
+Assert(Throws(() => ParseScancodeMap("GG" SubStr(REF_OURS, 3))), "blob: не-hex -> исключение")
+
+; классификация статусов
+AssertEq(ScancodeMap.ClassifyEntries([{new: 0xE068, orig: 0xE038}]), "ours", "classify: ours")
+AssertEq(ScancodeMap.ClassifyEntries([{new: 0x0000, orig: 0xE038}]), "foreign-ralt", "classify: правый Alt занят другим -> foreign-ralt")
+AssertEq(ScancodeMap.ClassifyEntries([{new: 0x001D, orig: 0x003A}]), "other", "classify: other")
+AssertEq(ScancodeMap.ClassifyEntries([]), "other", "classify: пусто -> other")
 
 ; ---------------------------------------------------------------------------
 ;  Итог
