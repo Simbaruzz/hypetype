@@ -4,6 +4,7 @@
 #Include ..\src\registry.ahk
 #Include ..\src\input.ahk
 #Include ..\src\editor.ahk
+#Include ..\src\typograph.ahk
 
 ; =============================================================================
 ;  Автотесты чистых функций config.ahk (PLAN.md §8.1).
@@ -309,6 +310,66 @@ AssertEq(Editor.Sanitize("a,b|c=d;e"), "a,b|c=d;e", "editor: Sanitize не тр�
 AssertEq(Editor.ButtonRepr(""), "", "editor: ButtonRepr пусто -> ''")
 AssertEq(Editor.ButtonRepr(Chr(0x0301)), Chr(0x25CC) Chr(0x0301), "editor: ButtonRepr диакритика на ◌")
 Assert(InStr(Editor.ButtonRepr("12345"), "…"), "editor: ButtonRepr длинной строки усечён с …")
+
+; ---------------------------------------------------------------------------
+;  10. typograph.ahk: группы G3/G4/G7 (TYPOGRAPH.md §5, §9). Каждый кейс —
+;      с двойным прогоном на идемпотентность (§3).
+; ---------------------------------------------------------------------------
+SettingsWith(overrides) {
+    s := Typograph.DefaultSettings()
+    for k, v in overrides
+        s[k] := v
+    return s
+}
+TypoCase(input, expected, name, settings := "") {
+    got := Typograph.Run(input, settings)
+    AssertEq(got, expected, "typo: " name)
+    AssertEq(Typograph.Run(got, settings), got, "typo idem: " name)
+}
+TypoNeg(input, name, settings := "") {
+    AssertEq(Typograph.Run(input, settings), input, "typo neg: " name)
+}
+
+NB := Chr(0x00A0)
+LED := Chr(0x2025)   ; ‥
+
+; G3 — пунктуация
+TypoCase("Текст...", "Текст…", "G3 троеточие")
+TypoCase("Что???", "Что?", "G3 ??? -> ?")
+TypoCase("Да!!!", "Да!", "G3 !!! -> !")
+TypoCase("Правда!?", "Правда?!", "G3 !? -> ?!")
+TypoCase("Серьёзно...?", "Серьёзно?" LED, "G3 ...? -> ?‥")
+TypoCase("Ну...!", "Ну!" LED, "G3 ...! -> !‥")
+TypoCase("Что?...", "Что?" LED, "G3 ?... -> ?‥")
+
+; G7 — символы
+TypoCase("(c)", "©", "G7 (c) -> ©")
+TypoCase("(R)", "®", "G7 (R) -> ®")
+TypoCase("(tm)", "™", "G7 (tm) -> ™")
+TypoCase("+-", "±", "G7 +- -> ±")
+TypoCase("№ 5", "№" NB "5", "G7 № 5 -> №НБ5")
+TypoCase("№5", "№" NB "5", "G7 №5 -> №НБ5")
+
+; G4 — пробелы
+TypoCase("менее,меньше", "менее, меньше", "G4 пробел после запятой")
+TypoCase("« привет »", "«привет»", "G4 пробелы внутри ёлочек")
+TypoCase("текст , точка", "текст, точка", "G4 пробел перед запятой убран")
+TypoCase("23 %", "23%", "G4 процент слитно (дефолт)")
+TypoCase("a  b   c", "a b c", "G4 двойные пробелы схлопнуты")
+
+; Тумблеры
+TypoCase("Текст...", "Текст...", "тумблер: Punct off", SettingsWith(Map("Punct", false)))
+TypoCase("(c)", "(c)", "тумблер: Symbols off", SettingsWith(Map("Symbols", false)))
+TypoCase("менее,меньше", "менее,меньше", "тумблер: SpaceClean off", SettingsWith(Map("SpaceClean", false)))
+TypoCase("23 %", "23" Chr(0x202F) "%", "тумблер: PercentSpace=narrow", SettingsWith(Map("PercentSpace", "narrow")))
+
+; Негативы (текст не должен меняться)
+TypoNeg("143,56", "негатив: десятичная дробь")
+TypoNeg("12:30", "негатив: время")
+TypoNeg("1:0", "негатив: счёт")
+TypoNeg("2.5.1", "негатив: версия")
+TypoNeg("Что?" LED, "негатив: уже SBOL-стиль ?‥")
+TypoNeg("кто-то", "негатив: дефис кто-то")
 
 ; ---------------------------------------------------------------------------
 ;  Итог

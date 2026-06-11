@@ -116,6 +116,7 @@ class Config {
             "layout", Map(),          ; w3cName -> {alt, altShift} (декодированные строки)
             "layoutUnknown", [],      ; сырые строки неизвестных ключей [Layout]
             "windows", Map(),         ; key -> value
+            "typograph", Map(),       ; key -> value (секция [Typograph], общая с mac)
             "foreign", []             ; {header, lines[]} неизвестных секций (вкл. [macOS])
         )
     }
@@ -131,7 +132,7 @@ class Config {
             t := Trim(rawLine)
             if RegExMatch(t, "^\[(.*)\]$", &m) {
                 section := m[1]
-                if (section = "hypetype" || section = "Layout" || section = "Windows") {
+                if (section = "hypetype" || section = "Layout" || section = "Windows" || section = "Typograph") {
                     inForeign := false
                 } else {
                     inForeign := true
@@ -157,6 +158,8 @@ class Config {
                     data["version"] := IsInteger(val) ? Integer(val) : 0
             } else if (section = "Windows") {
                 data["windows"][key] := val
+            } else if (section = "Typograph") {
+                data["typograph"][key] := val
             } else if (section = "Layout") {
                 this.ParseLayoutLine(data, key, val, rawLine)
             }
@@ -203,6 +206,11 @@ class Config {
             data["windows"]["DiacriticTimeoutMs"] := "3000"
         for k, v in data["windows"]
             out .= k "=" v nl
+        if (data["typograph"].Count > 0) {        ; пишем только если пользователь задал настройки
+            out .= nl "[Typograph]" nl
+            for k, v in data["typograph"]
+                out .= k "=" v nl
+        }
         for sec in data["foreign"] {
             out .= nl sec.header nl
             for l in sec.lines
@@ -343,6 +351,13 @@ class Config {
     static GetSetting(name, default) {
         if this._data["windows"].Has(name)
             return this._data["windows"][name]
+        return default
+    }
+
+    ; настройки секции [Typograph] (общая секция, TYPOGRAPH.md §7)
+    static GetTypographSetting(name, default) {
+        if this._data["typograph"].Has(name)
+            return this._data["typograph"][name]
         return default
     }
 
