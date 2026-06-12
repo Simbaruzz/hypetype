@@ -27,16 +27,11 @@ class Typograph {
     )
 
     ; G8 (ёфикатор): ТОЛЬКО безусловные ё-словоформы (без омографов все/всё и т.п.).
-    ; Хранится список ё-форм; е-ключ строится в __New (StrReplace ё->е). ДЕМО-словарь —
-    ; заменяется полным safe-list позже.
-    static YO_WORDS := "ёлка ёлки ёлку ёлкой ёлке ещё её моё своё твоё идёт идём приём приёма самолёт самолёта тёплый тёплая чёрный чёрное звёзды объём тётя"
-    static YO := Map()
-
-    static __New() {
-        for w in StrSplit(this.YO_WORDS, " ")
-            if (w != "")
-                this.YO[StrReplace(w, "ё", "е")] := w
-    }
+    ; YO_RAW (компактный словарь основа(суф|...)) задаётся из yodict.ahk; YO строится
+    ; лениво в EnsureYo. Источник словаря — eyo-kernel (MIT), частотный сабсет.
+    static YO_RAW := ""
+    static YO := Map()           ; е-форма (lower) -> ё-форма (lower)
+    static _yoBuilt := false
 
     ; Настройки по умолчанию (§7): все группы включены.
     static DefaultSettings() {
@@ -262,6 +257,7 @@ class Typograph {
     ;  G8. Yo — ёфикатор по словарю безусловных слов (опционально).
     ; =========================================================================
     static Yoficate(text) {
+        this.EnsureYo()
         out := ""
         pos := 1
         while (p := RegExMatch(text, "[А-Яа-яЁё]+", &m, pos)) {
@@ -275,6 +271,23 @@ class Typograph {
         if !this.YO.Has(key)
             return word
         return this.ApplyCase(word, this.YO[key])
+    }
+    ; ленивое построение YO из YO_RAW (формат: основа(суф1|суф2|...) или одиночная форма)
+    static EnsureYo() {
+        if this._yoBuilt
+            return
+        this._yoBuilt := true
+        for line in StrSplit(this.YO_RAW, "`n", "`r") {
+            if (line = "")
+                continue
+            if RegExMatch(line, "^(.*)\((.*)\)$", &m) {
+                stem := m[1]
+                for suf in StrSplit(m[2], "|")
+                    this.YO[StrReplace(stem suf, "ё", "е")] := stem suf
+            } else {
+                this.YO[StrReplace(line, "ё", "е")] := line
+            }
+        }
     }
     ; перенести регистр orig на repl (длины равны: отличие только е<->ё)
     static ApplyCase(orig, repl) {

@@ -15,10 +15,9 @@ $RECYCLE.BIN/
 *._temp
 *.temp
 
-# Test/run scratch (артефакты прогона тестов, см. tests/run_tests.ahk)
-tests/_last_run.log
-tests/_stderr.txt
-tests/_integration/
+# Test/run scratch: логи прогона, пробники, скачанные словари для сборки yodict
+# (всё, что начинается с _ в tests/ — временное, не коммитим)
+tests/_*
 
 # Локальная сборка
 build_test/

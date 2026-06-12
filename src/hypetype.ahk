@@ -5,6 +5,7 @@
 #Include config.ahk
 #Include registry.ahk
 #Include typograph.ahk
+#Include yodict.ahk
 #Include input.ahk
 #Include editor.ahk
 
