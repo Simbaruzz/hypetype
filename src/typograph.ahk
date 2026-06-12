@@ -26,11 +26,24 @@ class Typograph {
         "€", "€|(?<![A-Za-z])EUR(?![A-Za-z])"
     )
 
+    ; G8 (ёфикатор): ТОЛЬКО безусловные ё-словоформы (без омографов все/всё и т.п.).
+    ; Хранится список ё-форм; е-ключ строится в __New (StrReplace ё->е). ДЕМО-словарь —
+    ; заменяется полным safe-list позже.
+    static YO_WORDS := "ёлка ёлки ёлку ёлкой ёлке ещё её моё своё твоё идёт идём приём приёма самолёт самолёта тёплый тёплая чёрный чёрное звёзды объём тётя"
+    static YO := Map()
+
+    static __New() {
+        for w in StrSplit(this.YO_WORDS, " ")
+            if (w != "")
+                this.YO[StrReplace(w, "ё", "е")] := w
+    }
+
     ; Настройки по умолчанию (§7): все группы включены.
     static DefaultSettings() {
         return Map(
             "Quotes", true, "Dashes", true, "Punct", true, "SpaceClean", true,
             "Nbsp", true, "Numbers", true, "Symbols", true,
+            "Yo", false,                   ; ёфикатор — по умолчанию ВЫКЛ (осознанный опт-ин)
             "PercentSpace", "none",        ; none | narrow
             "CurrencyPosition", "after"    ; after | before
         )
@@ -46,6 +59,8 @@ class Typograph {
 
         if settings["SpaceClean"]
             text := this.TrimLines(text)                 ; G4: обрезка краёв строк
+        if settings["Yo"]
+            text := this.Yoficate(text)                  ; G8: ёфикатор (по словарю)
         if settings["Quotes"]
             text := this.Quotes(text)                    ; G1: автомат кавычек (стаб)
         if settings["Punct"]
@@ -241,6 +256,35 @@ class Typograph {
         ; последнее короткое слово (1-3) в конце предложения/строки
         text := RegExReplace(text, "m)\x20([А-Яа-яЁёA-Za-z]{1,3})(?=[.!?…]|\x20*$)", nb "$1")
         return text
+    }
+
+    ; =========================================================================
+    ;  G8. Yo — ёфикатор по словарю безусловных слов (опционально).
+    ; =========================================================================
+    static Yoficate(text) {
+        out := ""
+        pos := 1
+        while (p := RegExMatch(text, "[А-Яа-яЁё]+", &m, pos)) {
+            out .= SubStr(text, pos, p - pos) this.YoWord(m[0])
+            pos := p + StrLen(m[0])
+        }
+        return out SubStr(text, pos)
+    }
+    static YoWord(word) {
+        key := StrReplace(StrLower(word), "ё", "е")     ; нормализуем к е-форме (идемпотентность)
+        if !this.YO.Has(key)
+            return word
+        return this.ApplyCase(word, this.YO[key])
+    }
+    ; перенести регистр orig на repl (длины равны: отличие только е<->ё)
+    static ApplyCase(orig, repl) {
+        out := ""
+        Loop StrLen(repl) {
+            oc := SubStr(orig, A_Index, 1)
+            rc := SubStr(repl, A_Index, 1)
+            out .= (oc !== StrLower(oc)) ? StrUpper(rc) : rc
+        }
+        return out
     }
 
     ; =========================================================================

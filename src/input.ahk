@@ -144,6 +144,7 @@ class KeyInput {
         s := Typograph.DefaultSettings()
         for k in ["Quotes", "Dashes", "Punct", "SpaceClean", "Nbsp", "Numbers", "Symbols"]
             s[k] := (Config.GetTypographSetting(k, "1") != "0")
+        s["Yo"] := (Config.GetTypographSetting("Yo", "0") = "1")   ; ёфикатор: по умолчанию выкл
         s["PercentSpace"] := Config.GetTypographSetting("PercentSpace", "none")
         s["CurrencyPosition"] := Config.GetTypographSetting("CurrencyPosition", "after")
         return s
