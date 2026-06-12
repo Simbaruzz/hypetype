@@ -8,6 +8,10 @@
 class KeyInput {
     static MODIFIER := "vkA9"        ; правый Alt после виртуализации (PLAN.md §4.1)
 
+    ; таймауты буферной механики типографа (TYPOGRAPH.md §2), константами
+    static COPY_TIMEOUT := 0.4       ; сек на ClipWait после Ctrl+C
+    static PASTE_DELAY := 150        ; мс: дать приложению прочитать буфер до восстановления
+
     ; состояние диакритического режима (приватное, не глобалы)
     static _ih := ""
 
@@ -25,6 +29,8 @@ class KeyInput {
         }
         ; Alt+Enter работает как обычный системный Alt+Enter (фича v1)
         Hotkey(this.MODIFIER " & Enter", (*) => Send("{LAlt down}{Enter}{LAlt up}"))
+        ; Alt+Backspace — типографировать выделенный текст (TYPOGRAPH.md §2)
+        Hotkey(this.MODIFIER " & SC00E", ObjBindMethod(this, "OnTypograph"))
     }
 
     ; -------------------------------------------------------------------------
@@ -105,6 +111,42 @@ class KeyInput {
         if (ret <= 0)
             return str
         return StrGet(buf, ret, "UTF-16")
+    }
+
+    ; -------------------------------------------------------------------------
+    ;  Типограф по RAlt+Backspace (TYPOGRAPH.md §2). Через буфер обмена.
+    ; -------------------------------------------------------------------------
+    static OnTypograph(*) {
+        saved := ClipboardAll()                      ; сохранить буфер целиком (картинки/форматы)
+        A_Clipboard := ""
+        Send("^c")
+        if !ClipWait(this.COPY_TIMEOUT) {            ; ничего не выделено / приложение не отдало
+            this.FlashTip(Txt.TypoNoSelection)
+            A_Clipboard := saved
+            return
+        }
+        original := A_Clipboard
+        result := Typograph.Run(original, this.TypographSettings())
+        if (result == original) {                    ; уже типографировано — не дёргать вставку
+            this.FlashTip(Txt.TypoAlready)
+            A_Clipboard := saved
+            return
+        }
+        A_Clipboard := result
+        Send("^v")
+        Sleep(this.PASTE_DELAY)                       ; дать приложению вставить до восстановления
+        A_Clipboard := saved
+        this.FlashTip(Txt.TypoDone)
+    }
+
+    ; Настройки [Typograph] из конфига (читаются на каждом нажатии — как раскладка).
+    static TypographSettings() {
+        s := Typograph.DefaultSettings()
+        for k in ["Quotes", "Dashes", "Punct", "SpaceClean", "Nbsp", "Numbers", "Symbols"]
+            s[k] := (Config.GetTypographSetting(k, "1") != "0")
+        s["PercentSpace"] := Config.GetTypographSetting("PercentSpace", "none")
+        s["CurrencyPosition"] := Config.GetTypographSetting("CurrencyPosition", "after")
+        return s
     }
 
     ; --- ToolTip-помощники (одна функция-таймер на скрытие, без x/y) ---

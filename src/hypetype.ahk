@@ -4,13 +4,14 @@
 #Include strings.ahk
 #Include config.ahk
 #Include registry.ahk
+#Include typograph.ahk
 #Include input.ahk
 #Include editor.ahk
 
 Persistent
 
 ; Единственная константа версии приложения (PLAN.md §1).
-global APP_VERSION := "0.1.0"
+global APP_VERSION := "0.2.0"
 
 ; =============================================================================
 ;  Инициализация — явная, линейная, в одном месте (PLAN.md §6).
