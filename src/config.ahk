@@ -361,6 +361,14 @@ class Config {
         return default
     }
 
+    ; Перечитать [Typograph] из файла (правки конфига применяются без перезапуска, §9.3.8).
+    static RefreshTypograph() {
+        if !FileExist(this.Path)
+            return
+        try
+            this._data["typograph"] := this.ParseText(FileRead(this.Path, "UTF-8"))["typograph"]
+    }
+
     ; =========================================================================
     ;  Путь (FORMAT/PLAN §2.1) и дефолт
     ; =========================================================================
@@ -376,6 +384,13 @@ class Config {
             d["layout"][name] := {alt: alt, altShift: shift}
         }
         d["windows"]["DiacriticTimeoutMs"] := "3000"
+        ; секция [Typograph] пишется сразу при первом запуске — чтобы ёфикатор (Yo)
+        ; и группы было видно и легко включить (TYPOGRAPH.md §7)
+        for k in ["Quotes", "Dashes", "Punct", "SpaceClean", "Nbsp", "Numbers", "Symbols"]
+            d["typograph"][k] := "1"
+        d["typograph"]["Yo"] := "0"
+        d["typograph"]["PercentSpace"] := "none"
+        d["typograph"]["CurrencyPosition"] := "after"
         return d
     }
 

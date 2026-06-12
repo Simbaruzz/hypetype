@@ -1,4 +1,4 @@
-# build_yodict.ps1 — генерация src/yodict.ahk (частотный сабсет безусловных ё-слов).
+﻿# build_yodict.ps1 — генерация src/yodict.ahk (частотный сабсет безусловных ё-слов).
 #
 # Источники (скачиваются во временную папку, в репозиторий/exe не попадают):
 #   - safe-словарь eyo-kernel (MIT): однозначные ё-словоформы, формат основа(суф|...)
@@ -52,7 +52,15 @@ $ranked = for ($i=0; $i -lt $lines.Count; $i++) { if ($score[$i] -gt 0) { [pscus
 $ranked = $ranked | Sort-Object score -Descending
 $budget = $BudgetKB*1024; $bytes=0; $sel=New-Object System.Collections.Generic.List[string]
 foreach ($k in $ranked) { $lb=[System.Text.Encoding]::UTF8.GetByteCount($k.line)+1; if ($bytes+$lb -gt $budget) { continue }; $sel.Add($k.line); $bytes+=$lb }
-$body = $sel | Sort-Object
+# Курированный набор частых ё-имён (safe-словарь почти не содержит имён).
+# Только безопасные: е-форма не является обычным словом. Исключены омографы
+# (Тёма/тема, Лёва/лева). У Пётр ё лишь в им.п. — добавлен только он.
+$names = @(
+  'артём(|а|е|ом|у)', 'семён(|а|е|ом|у)', 'фёдор(|а|е|ом|у)', 'пётр',
+  'алён(а|е|ой|у|ы)', 'алёнк(а|е|и|ой|у)', 'алёш(а|е|ей|и|у)',
+  'лёш(а|е|ей|и|у)', 'серёж(а|е|ей|и|у)', 'матрён(а|е|ой|у|ы)'
+)
+$body = ($sel + $names) | Sort-Object
 $n = $body.Count
 
 $header = @(

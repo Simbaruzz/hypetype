@@ -117,6 +117,7 @@ class KeyInput {
     ;  Типограф по RAlt+Backspace (TYPOGRAPH.md §2). Через буфер обмена.
     ; -------------------------------------------------------------------------
     static OnTypograph(*) {
+        Config.RefreshTypograph()                    ; правки [Typograph] в конфиге — без перезапуска
         saved := ClipboardAll()                      ; сохранить буфер целиком (картинки/форматы)
         A_Clipboard := ""
         Send("^c")

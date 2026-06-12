@@ -224,6 +224,9 @@ AssertEq(dd["layout"]["Comma"].alt, Chr(0x00AB), "дефолт: Comma alt = «")
 Assert(!dd["layout"].Has("Backquote") || dd["layout"]["Backquote"].alt = "", "дефолт: Backquote alt пуст")
 ddOut := Config.BuildText(dd)
 Assert(InStr(ddOut, "[Layout]") && InStr(ddOut, "[Windows]"), "дефолт: сериализуется с секциями")
+AssertEq(dd["typograph"]["Yo"], "0", "дефолт: [Typograph] Yo=0 при первом запуске")
+Assert(dd["typograph"].Has("Quotes"), "дефолт: [Typograph] содержит группы")
+Assert(InStr(ddOut, "[Typograph]"), "дефолт: [Typograph] записан в файл")
 
 ; порядок [Layout] = таблица §5, а не алфавит (FORMAT.md §7.3)
 pDigit1 := InStr(ddOut, "`nDigit1=")
@@ -439,6 +442,9 @@ TypoCase("еще солнечно", "ещё солнечно", "G8 еще -> е�
 TypoCase("ёлка", "ёлка", "G8 уже с ё идемпотентно", yoSet)
 TypoNeg("красная роза", "G8 слова без ё не трогаются", yoSet)
 TypoNeg("елка", "G8 по умолчанию выкл")
+TypoCase("Артем", "Артём", "G8 имя Артем -> Артём", yoSet)
+TypoCase("Семен встретил Федора", "Семён встретил Фёдора", "G8 имена в тексте", yoSet)
+TypoNeg("эта тема важна", "G8 омограф тема (имя Тёма исключено) не трогается", yoSet)
 
 ; Золотой корпус §9.2 — фраза-пытка. Эталон = вывод по правилам G2/G5
 ; (лишние НБ в примере ТЗ были опиской владельца). НБ обязательны перед
