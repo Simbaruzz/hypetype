@@ -19,8 +19,6 @@ global APP_URL := "https://github.com/Simbaruzz/hypetype"
 ;  Инициализация — явная, линейная, в одном месте (PLAN.md §6).
 ; =============================================================================
 Config.Load()
-SplitPath(Config.Path, , &cfgDir)
-ScancodeMap.BackupDir := cfgDir          ; .reg-бэкап ляжет рядом с config.ini
 if (Config.PendingNotice != "")
     MsgBox(Config.PendingNotice, "hypetype", "Iconi")
 
@@ -77,9 +75,9 @@ ShowVirtualizationResult(res) {
         case "badblob":
             MsgBox(Txt.BadBlobBody, Txt.BadBlobTitle, "Icon!")
         case "enabled":
-            MsgBox(Txt.EnabledBody Txt.BackupLine res.backup, Txt.EnabledTitle, "Iconi")
+            MsgBox(Txt.EnabledBody, Txt.EnabledTitle, "Iconi")
         case "disabled":
-            MsgBox(Txt.DisabledBody Txt.BackupLine res.backup, Txt.DisabledTitle, "Iconi")
+            MsgBox(Txt.DisabledBody, Txt.DisabledTitle, "Iconi")
         case "already":
             MsgBox(Txt.AlreadyOnBody, Txt.AlreadyOnTitle, "Iconi")
         case "already-off", "notpresent":

@@ -20,7 +20,7 @@ class Txt {
     static EnabledTitle := "Всё Чикаго!"
     static EnabledBody  := "«Виртуализация» включена! Перезагрузите компьютер ^_^ и печатайте символы в стиле hypetype."
 
-    static DisabledTitle := "Всё по плану — но слегка грустненько"
+    static DisabledTitle := "Всё по плану — хоть и слегка грустненько"
     static DisabledBody  := "«Виртуализация» отключена T_T Перезагрузите компьютер для полного возврата к стандартному Alt."
 
     static ForeignTitle := "Правый Alt уже занят"
@@ -34,21 +34,19 @@ class Txt {
     static AlreadyOffTitle := "Уже выключено"
     static AlreadyOffBody  := "«Виртуализация» и так не активна."
 
-    static BackupLine := "`n`nРезервная копия реестра (для отката двойным кликом):`n"
-
     static MainTitle := "hypetype"
     static EditAltShift := "Символ с Alt+Shift"
     static EditAlt := "Символ с Alt"
     static EditSave := "Сохранить"
     static EditTitlePrefix := "Символы для «"
     static EditTitleSuffix := "»"
-    static TooLongTitle := "Слишком длинно"
-    static TooLongBody := "Максимум 32 символа (кодпоинта) на значение. Сократи и сохрани ещё раз."
+    static TooLongTitle := "Извините, у нас тут ограничение"
+    static TooLongBody := "Максимум 32 символа на значение. Сократите и сохраните ещё раз."
     ; подсказка редактора построчно (для управляемого межстрочного интервала, см. Editor.LINE_SPACING).
     ; последняя строка содержит ссылку <a> на «даст ¢».
     static EditorHintLines := [
         "Символы вводятся с нажатым правым Alt, например, Alt + < и Alt + > дадут «кавычки».",
-        "Если символ, нарисован в верхней части кнопки, нужно нажать ещё и Shift, например, Alt + Shift + C <a id=`"donate`">даст ¢</a>",
+        "Если символ нарисован в верхней части кнопки, нужно нажать ещё и Shift, например, Alt + Shift + C <a id=`"donate`">даст ¢</a>",
         "Чтобы использовать автотипограф: выделите текст и нажмите Alt + Backspace",
     ]
 

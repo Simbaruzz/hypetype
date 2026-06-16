@@ -62,7 +62,6 @@ class ScancodeMap {
     static REG_VAL := "Scancode Map"
     static OUR_NEW := 0xE068      ; правый Alt становится vkA9
     static OUR_ORIG := 0xE038     ; физический правый Alt
-    static BackupDir := A_ScriptDir   ; точка входа переставит рядом с config.ini
 
     ; --- чтение (безопасно, без прав админа) ---
     static ReadRaw() {
@@ -92,7 +91,7 @@ class ScancodeMap {
             return "other"        ; нечитаемый блоб — точно не наш, ralt не трогаем
     }
 
-    ; Результат: {ok, status, backup?}.  status: noadmin|badblob|foreign-ralt|already|enabled
+    ; Результат: {ok, status}.  status: noadmin|badblob|foreign-ralt|already|enabled
     static Enable() {
         if !A_IsAdmin
             return {ok: false, status: "noadmin"}
@@ -109,13 +108,12 @@ class ScancodeMap {
             if (cls = "foreign-ralt")
                 return {ok: false, status: "foreign-ralt"}
         }
-        backup := this.WriteBackup(raw)            ; БЭКАП ДО ЗАПИСИ
         entries.Push({new: this.OUR_NEW, orig: this.OUR_ORIG})
         RegWrite(BuildScancodeMap(entries), "REG_BINARY", this.REG_KEY, this.REG_VAL)
-        return {ok: true, status: "enabled", backup: backup}
+        return {ok: true, status: "enabled"}
     }
 
-    ; Результат: {ok, status, backup?}.  status: noadmin|badblob|already-off|notpresent|disabled
+    ; Результат: {ok, status}.  status: noadmin|badblob|already-off|notpresent|disabled
     static Disable() {
         if !A_IsAdmin
             return {ok: false, status: "noadmin"}
@@ -138,37 +136,11 @@ class ScancodeMap {
         if !found
             return {ok: true, status: "notpresent"}   ; нашей записи нет — ничего не трогаем
 
-        backup := this.WriteBackup(raw)            ; БЭКАП ДО ЗАПИСИ
         if (kept.Length = 0)
             RegDelete(this.REG_KEY, this.REG_VAL)      ; наша была единственной
         else
             RegWrite(BuildScancodeMap(kept), "REG_BINARY", this.REG_KEY, this.REG_VAL)
-        return {ok: true, status: "disabled", backup: backup}
-    }
-
-    ; --- .reg-бэкап текущего значения (импортируется двойным кликом) ---
-    static WriteBackup(raw) {
-        path := this.BackupDir "\scancode-backup.reg"
-        q := Chr(0x22)
-        nl := "`r`n"
-        content := "Windows Registry Editor Version 5.00" nl nl
-        content .= "[" this.REG_KEY "]" nl
-        if (raw = "")
-            content .= q "Scancode Map" q "=-" nl                       ; значения не было -> удалить наше
-        else
-            content .= q "Scancode Map" q "=hex:" this.RegHexBytes(raw) nl
-        f := FileOpen(path, "w", "UTF-16")
-        f.Write(content)
-        f.Close()
-        return path
-    }
-
-    static RegHexBytes(hex) {
-        hex := StrUpper(RegExReplace(hex, "\s", ""))
-        out := ""
-        Loop StrLen(hex) // 2
-            out .= (out = "" ? "" : ",") SubStr(hex, (A_Index - 1) * 2 + 1, 2)
-        return StrLower(out)
+        return {ok: true, status: "disabled"}
     }
 }
 
