@@ -9,6 +9,7 @@
 class Editor {
     static _gui := ""
     static _buttons := Map()       ; w3cName -> Button control
+    static _editGui := ""          ; текущее окно правки (одно за раз)
     static _font := "Cambria"
 
     ; подписи кнопок (клавиатурные кэпы) и физические ряды
@@ -73,7 +74,15 @@ class Editor {
     ; -------------------------------------------------------------------------
     ;  Окно правки одной клавиши
     ; -------------------------------------------------------------------------
+    static CloseEdit() {
+        if (this._editGui) {
+            try this._editGui.Destroy()
+            this._editGui := ""
+        }
+    }
+
     static OnKeyClick(w3cName, *) {
+        this.CloseEdit()                            ; одно окно правки за раз — закрыть прежнее
         scale := A_ScreenDPI / 96
         logW := A_ScreenWidth / scale
         wfld := Round(logW * 0.2)
@@ -81,8 +90,9 @@ class Editor {
         k := Config.GetKey(w3cName)
 
         eg := Gui("+AlwaysOnTop +Owner" this._gui.Hwnd, Txt.EditTitlePrefix this.DISPLAY[w3cName] Txt.EditTitleSuffix)
+        this._editGui := eg
         eg.BackColor := "FFFFFF"
-        eg.OnEvent("Close", (*) => eg.Destroy())   ; окно правки одноразовое
+        eg.OnEvent("Close", (*) => this.CloseEdit())
 
         eg.SetFont("s12", this._font)
         eg.AddText(, Txt.EditAltShift)
@@ -111,7 +121,7 @@ class Editor {
         }
         Config.SetKey(w3cName, alt, shift)                 ; пустое поле = «не задано», честно
         this._buttons[w3cName].Text := this.ButtonText(w3cName)
-        eg.Destroy()
+        this.CloseEdit()
     }
 
     ; -------------------------------------------------------------------------
