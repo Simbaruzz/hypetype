@@ -12,7 +12,7 @@
 Persistent
 
 ; Единственная константа версии приложения (PLAN.md §1).
-global APP_VERSION := "0.2.0"
+global APP_VERSION := "0.1.0"
 global APP_URL := "https://github.com/Simbaruzz/hypetype"
 
 ; =============================================================================

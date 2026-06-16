@@ -12,6 +12,7 @@ class Editor {
     static _editGui := ""          ; текущее окно правки (одно за раз)
     static _font := "Cambria"
     static DONATE_URL := "https://boosty.to/simbarus/donate"   ; ссылка в подсказке
+    static LINE_SPACING := 1.3     ; межстрочный интервал подсказки (крутить на глаз)
 
     ; подписи кнопок (клавиатурные кэпы) и физические ряды
     static DISPLAY := Map(
@@ -71,8 +72,23 @@ class Editor {
         textWidth := wbtn * 12 + 11 * spacing
         y += margin - spacing                       ; зазор между сеткой клавиш и подсказкой = поле окна
         g.SetFont("s" Floor(fontSize * 0.732), this._font)
-        hint := g.AddLink("x" margin " y" y " w" textWidth, Txt.EditorHint)
-        hint.OnEvent("Click", (*) => Run(this.DONATE_URL))   ; «даст ¢» -> бусти
+        ; подсказка построчно — управляемый межстрочный интервал (LINE_SPACING)
+        lines := Txt.EditorHintLines
+        step := 0
+        Loop lines.Length {
+            i := A_Index
+            cy := (i = 1) ? y : y + (i - 1) * step
+            if (i = lines.Length) {                  ; последняя строка — со ссылкой
+                ctrl := g.AddLink("x" margin " y" cy " w" textWidth, lines[i])
+                ctrl.OnEvent("Click", (*) => Run(this.DONATE_URL))   ; «даст ¢» -> бусти
+            } else {
+                ctrl := g.AddText("x" margin " y" cy " w" textWidth, lines[i])
+            }
+            if (i = 1) {                             ; высота одной строки -> шаг с множителем
+                ctrl.GetPos(, , , &ch)
+                step := Round(ch * this.LINE_SPACING)
+            }
+        }
     }
 
     ; -------------------------------------------------------------------------
