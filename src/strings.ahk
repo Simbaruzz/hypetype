@@ -44,7 +44,7 @@ class Txt {
     static EditTitleSuffix := "»"
     static TooLongTitle := "Слишком длинно"
     static TooLongBody := "Максимум 32 символа (кодпоинта) на значение. Сократи и сохрани ещё раз."
-    static EditorHint := "Символы вводятся с нажатым правым Alt, например Alt + < и Alt + > дадут «кавычки».`nЕсли символ нарисован в верхней части кнопки, значит нужно нажать ещё и Shift, например Alt + Shift + C даст ¢"
+    static EditorHint := "Символы вводятся с нажатым правым Alt, например Alt + < и Alt + > дадут «кавычки».`nЕсли символ нарисован в верхней части кнопки, значит нужно нажать ещё и Shift, например Alt + Shift + C <a id=`"donate`">даст ¢</a>"
 
     static TypoNoSelection := "Выделите текст"
     static TypoDone := "Типографировано ✓"

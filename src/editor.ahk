@@ -11,6 +11,7 @@ class Editor {
     static _buttons := Map()       ; w3cName -> Button control
     static _editGui := ""          ; текущее окно правки (одно за раз)
     static _font := "Cambria"
+    static DONATE_URL := "https://boosty.to/simbarus/donate"   ; ссылка в подсказке
 
     ; подписи кнопок (клавиатурные кэпы) и физические ряды
     static DISPLAY := Map(
@@ -68,7 +69,8 @@ class Editor {
 
         textWidth := wbtn * 12 + 11 * spacing
         g.SetFont("s" Floor(fontSize * 0.732), this._font)
-        g.AddText("x" margin " y" y " w" textWidth, Txt.EditorHint)
+        hint := g.AddLink("x" margin " y" y " w" textWidth, Txt.EditorHint)
+        hint.OnEvent("Click", (*) => Run(this.DONATE_URL))   ; «даст ¢» -> бусти
     }
 
     ; -------------------------------------------------------------------------
