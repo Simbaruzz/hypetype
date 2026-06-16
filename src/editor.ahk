@@ -51,6 +51,7 @@ class Editor {
 
         g := Gui("+AlwaysOnTop +Border", Txt.MainTitle)
         g.BackColor := "FFFFFF"
+        g.MarginX := margin, g.MarginY := margin   ; одинаковые отступы справа/снизу при авторазмере
         g.OnEvent("Close", (*) => g.Hide())     ; «X» прячет окно, не уничтожает (переоткрытие)
         this._gui := g
 
@@ -68,6 +69,7 @@ class Editor {
         }
 
         textWidth := wbtn * 12 + 11 * spacing
+        y += margin - spacing                       ; зазор между сеткой клавиш и подсказкой = поле окна
         g.SetFont("s" Floor(fontSize * 0.732), this._font)
         hint := g.AddLink("x" margin " y" y " w" textWidth, Txt.EditorHint)
         hint.OnEvent("Click", (*) => Run(this.DONATE_URL))   ; «даст ¢» -> бусти
