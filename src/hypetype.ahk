@@ -13,6 +13,7 @@ Persistent
 
 ; Единственная константа версии приложения (PLAN.md §1).
 global APP_VERSION := "0.2.0"
+global APP_URL := "https://github.com/Simbaruzz/hypetype"
 
 ; =============================================================================
 ;  Инициализация — явная, линейная, в одном месте (PLAN.md §6).
@@ -34,6 +35,7 @@ BuildTray() {
     tray := A_TrayMenu
     tray.Delete()                                        ; убрать стандартные пункты
     tray.Add(Txt.MenuExit, (*) => ExitApp())
+    tray.Add(Txt.MenuAbout, OpenAbout)
     tray.Add()
     tray.Add(Txt.MenuAutostart, ToggleAutostart)
     tray.Add(Txt.MenuVirtualize, ToggleVirtualization)
@@ -87,4 +89,8 @@ ShowVirtualizationResult(res) {
 
 ShowEditor(*) {
     Editor.Show()
+}
+
+OpenAbout(*) {
+    Run(APP_URL)
 }

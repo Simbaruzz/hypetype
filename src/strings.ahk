@@ -9,6 +9,7 @@
 
 class Txt {
     static MenuExit       := "Выход"
+    static MenuAbout      := "Про hypetype↗"
     static MenuAutostart  := "Запуск при старте"
     static MenuVirtualize := "Виртуализация"
     static MenuEditor     := "Редактировать"
