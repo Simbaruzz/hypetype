@@ -72,22 +72,20 @@ class Editor {
         textWidth := wbtn * 12 + 11 * spacing
         y += margin - spacing                       ; зазор между сеткой клавиш и подсказкой = поле окна
         g.SetFont("s" Floor(fontSize * 0.732), this._font)
-        ; подсказка построчно — управляемый межстрочный интервал (LINE_SPACING)
-        lines := Txt.EditorHintLines
-        step := 0
-        Loop lines.Length {
-            i := A_Index
-            cy := (i = 1) ? y : y + (i - 1) * step
-            if (i = lines.Length) {                  ; последняя строка — со ссылкой
-                ctrl := g.AddLink("x" margin " y" cy " w" textWidth, lines[i])
+        ; подсказка построчно: шаг = реальная высота строки + зазор (переживает переносы).
+        ; строка со ссылкой <a> рисуется Link-контролом (где бы ни стояла), остальные — Text.
+        gap := -1
+        for line in Txt.EditorHintLines {
+            if InStr(line, "<a ") {
+                ctrl := g.AddLink("x" margin " y" y " w" textWidth, line)
                 ctrl.OnEvent("Click", (*) => Run(this.DONATE_URL))   ; «даст ¢» -> бусти
             } else {
-                ctrl := g.AddText("x" margin " y" cy " w" textWidth, lines[i])
+                ctrl := g.AddText("x" margin " y" y " w" textWidth, line)
             }
-            if (i = 1) {                             ; высота одной строки -> шаг с множителем
-                ctrl.GetPos(, , , &ch)
-                step := Round(ch * this.LINE_SPACING)
-            }
+            ctrl.GetPos( , , , &ch)
+            if (gap < 0)
+                gap := Round(ch * (this.LINE_SPACING - 1))   ; аккуратный зазор от высоты одиночной строки
+            y += ch + gap
         }
     }
 
