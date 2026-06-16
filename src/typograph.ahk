@@ -128,6 +128,9 @@ class Typograph {
     ; =========================================================================
     static Quotes(text) {
         DQ := Chr(0x22), SQ := Chr(0x27)
+        ; «лапки» macOS/англ. (“ ”) -> прямые: дальше автомат расставит ёлочки по контексту
+        text := StrReplace(text, "“", DQ)
+        text := StrReplace(text, "”", DQ)
         chars := StrSplit(text)
         n := chars.Length
         out := ""
