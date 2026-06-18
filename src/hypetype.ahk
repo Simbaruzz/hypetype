@@ -14,6 +14,7 @@ Persistent
 ; Единственная константа версии приложения (PLAN.md §1).
 global APP_VERSION := "0.1.0"
 global APP_URL := "https://github.com/Simbaruzz/hypetype"
+global VIRT_ARG := "/virt"   ; маркер: перезапущенный под админом экземпляр выполняет переключение
 
 ; =============================================================================
 ;  Инициализация — явная, линейная, в одном месте (PLAN.md §6).
@@ -24,6 +25,14 @@ if (Config.PendingNotice != "")
 
 KeyInput.Init()
 BuildTray()
+
+; перезапущены под админом ради переключения виртуализации (см. RelaunchAsAdmin)
+for arg in A_Args {
+    if (arg = VIRT_ARG) {
+        ToggleVirtualization()
+        break
+    }
+}
 return
 
 ; =============================================================================
@@ -61,9 +70,27 @@ ToggleAutostart(*) {
 }
 
 ToggleVirtualization(*) {
+    if !A_IsAdmin {
+        RelaunchAsAdmin()        ; нет прав — перезапустимся через UAC и выполним переключение там
+        return
+    }
     res := (ScancodeMap.Status() = "ours") ? ScancodeMap.Disable() : ScancodeMap.Enable()
     ShowVirtualizationResult(res)
     RefreshTrayChecks()
+}
+
+; Перезапуск через UAC с маркером VIRT_ARG. Успех -> уступаем место elevated-экземпляру;
+; отказ UAC -> остаёмся как есть и сообщаем. Петли нет: перезапуск только при !A_IsAdmin.
+RelaunchAsAdmin() {
+    try {
+        if A_IsCompiled
+            Run('*RunAs "' A_ScriptFullPath '" ' VIRT_ARG)
+        else
+            Run('*RunAs "' A_AhkPath '" "' A_ScriptFullPath '" ' VIRT_ARG)
+        ExitApp()
+    } catch {
+        MsgBox(Txt.NoAdminBody, Txt.NoAdminTitle, "Icon!")
+    }
 }
 
 ShowVirtualizationResult(res) {
