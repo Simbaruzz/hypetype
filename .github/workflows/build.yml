@@ -19,6 +19,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Исключить рабочую папку из Defender
+        shell: pwsh
+        run: |
+          # AHK-бинарники и скомпилированный exe ловят ложные срабатывания Defender —
+          # без исключения он удаляет hypetype.exe сразу после сборки, и шаг компиляции падает.
+          try {
+              Add-MpPreference -ExclusionPath "${{ github.workspace }}" -ErrorAction Stop
+              Write-Host "Defender: исключение для рабочей папки добавлено"
+          } catch {
+              Write-Warning "Не удалось добавить исключение Defender: $_"
+          }
+
       - name: Скачать AutoHotkey v2 (portable)
         shell: pwsh
         run: |
