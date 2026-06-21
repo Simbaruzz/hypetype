@@ -46,6 +46,7 @@ BuildTray() {
     tray.Add()
     tray.Add(Txt.MenuAutostart, ToggleAutostart)
     tray.Add(Txt.MenuVirtualize, ToggleVirtualization)
+    tray.Add(Txt.MenuYo, ToggleYo)
     tray.Add()
     tray.Add(Txt.MenuEditor, ShowEditor)
     A_IconTip := "hypetype " APP_VERSION
@@ -62,10 +63,19 @@ RefreshTrayChecks() {
         tray.Check(Txt.MenuVirtualize)
     else
         tray.Uncheck(Txt.MenuVirtualize)
+    if (Config.GetTypographSetting("Yo", "0") = "1")
+        tray.Check(Txt.MenuYo)
+    else
+        tray.Uncheck(Txt.MenuYo)
 }
 
 ToggleAutostart(*) {
     Autostart.Toggle()
+    RefreshTrayChecks()
+}
+
+ToggleYo(*) {
+    Config.ToggleTypograph("Yo")        ; 0 <-> 1 в [Typograph], сохраняется в конфиг
     RefreshTrayChecks()
 }
 

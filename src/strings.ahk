@@ -12,6 +12,7 @@ class Txt {
     static MenuAbout      := "Про hypetype↗"
     static MenuAutostart  := "Запуск при старте"
     static MenuVirtualize := "Виртуализация"
+    static MenuYo         := "Ёфикатор"
     static MenuEditor     := "Редактировать"
 
     static NoAdminTitle := "Требуются права администратора!"
