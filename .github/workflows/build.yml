@@ -17,19 +17,7 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Исключить рабочую папку из Defender
-        shell: pwsh
-        run: |
-          # AHK-бинарники и скомпилированный exe ловят ложные срабатывания Defender —
-          # без исключения он удаляет hypetype.exe сразу после сборки, и шаг компиляции падает.
-          try {
-              Add-MpPreference -ExclusionPath "${{ github.workspace }}" -ErrorAction Stop
-              Write-Host "Defender: исключение для рабочей папки добавлено"
-          } catch {
-              Write-Warning "Не удалось добавить исключение Defender: $_"
-          }
+      - uses: actions/checkout@v5
 
       - name: Скачать AutoHotkey v2 (portable)
         shell: pwsh
@@ -70,19 +58,14 @@ jobs:
       - name: Скомпилировать hypetype.exe
         shell: pwsh
         run: |
-          Write-Host "Ahk2Exe: $env:AHK2EXE"
-          Write-Host "Base:    $env:AHK_EXE"
-          $ahkArgs = @('/in', 'src\hypetype.ahk', '/out', 'hypetype.exe',
+          # Абсолютный /out: Ahk2Exe резолвит относительный /out от папки /in (src\), а не от cwd,
+          # поэтому без абсолютного пути exe уезжал в src\hypetype.exe и проверка его не находила.
+          $out = "$env:GITHUB_WORKSPACE\hypetype.exe"
+          $ahkArgs = @('/in', 'src\hypetype.ahk', '/out', $out,
                        '/icon', 'assets\icon.ico', '/base', $env:AHK_EXE)
-          Write-Host "Args:    $($ahkArgs -join ' ')"
-          $p = Start-Process -FilePath $env:AHK2EXE -ArgumentList $ahkArgs -Wait -PassThru `
-                 -RedirectStandardOutput a2e_out.txt -RedirectStandardError a2e_err.txt
-          Write-Host "Ahk2Exe exit code: $($p.ExitCode)"
-          Write-Host "--- Ahk2Exe stdout ---"; if (Test-Path a2e_out.txt) { Get-Content a2e_out.txt -Raw }
-          Write-Host "--- Ahk2Exe stderr ---"; if (Test-Path a2e_err.txt) { Get-Content a2e_err.txt -Raw }
-          Write-Host "exe существует: $(Test-Path hypetype.exe)"
-          if (-not (Test-Path hypetype.exe)) { throw "Сборка не удалась: hypetype.exe не создан (Ahk2Exe exit $($p.ExitCode))" }
-          Write-Host "Готово: hypetype.exe"
+          $p = Start-Process -FilePath $env:AHK2EXE -ArgumentList $ahkArgs -Wait -PassThru
+          if (-not (Test-Path $out)) { throw "Сборка не удалась: hypetype.exe не создан (Ahk2Exe exit $($p.ExitCode))" }
+          Write-Host "Готово: $out (Ahk2Exe exit $($p.ExitCode))"
 
       - name: Прикрепить exe к релизу
         if: github.event_name == 'release'
