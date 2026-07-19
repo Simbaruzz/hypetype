@@ -19,6 +19,10 @@ class Editor2 {
     static _lion := ""              ; Picture лев (показывается при ховере)
     static _logoHover := false
     static LOGO_URL := "https://simbarus.com/hypetype"
+    static DONATE_URL := "https://boosty.to/simbarus/donate"   ; ссылка «даст ¢» (как в editor.ahk)
+    static _winW := 0               ; клиентская ширина окна (для ресайза по ⓘ)
+    static _baseH := 0              ; высота без подсказки
+    static _fullH := 0              ; высота с подсказкой
 
     ; строки спайка (в общий strings.ahk не лезем до вердикта)
     static STR_CANCEL := "отмена"
@@ -130,24 +134,37 @@ class Editor2 {
         x := this.MARGIN, y += KH + GAP
         arrowsW := 3 * U + 2 * GAP
         spaceW := contentW - 7 * U - arrowsW - 10 * GAP
-        x := this.AddDecor(g, x, y, U, Chr(0x24D8), "C", "", ObjBindMethod(this, "ToggleHints"), this.COL_KEY)  ; ⓘ кликабельна -> светлее
-        for label in ["ctrl", "win", "alt"]
-            x := this.AddDecor(g, x, y, U, label, "B")
+        ; ⓘ кликабельна: светлее, с ховером, прижата вниз-влево (как на маке)
+        x := this.AddDecor(g, x, y, U, Chr(0x24D8), "BL", "", ObjBindMethod(this, "ToggleHints"), this.COL_KEY, "__info")
+        for label in ["ctrl", "win", "alt"]                       ; левые — вниз и влево
+            x := this.AddDecor(g, x, y, U, label, "BL")
         x := this.AddKeycap(g, x, y, spaceW, "Space")
         x := this.AddHypeKey(g, x, y, U)
-        for label in ["win", "ctrl"]
-            x := this.AddDecor(g, x, y, U, label, "B")
+        for label in ["win", "ctrl"]                              ; правые — вниз и вправо
+            x := this.AddDecor(g, x, y, U, label, "BR")
         this.AddArrows(g, x, y)
 
-        ; --- подсказка под клавиатурой (появляется по ⓘ, место зарезервировано) ---
+        ; --- подсказка под клавиатурой (по ⓘ окно расширяется и она появляется) ---
         y += KH + this.MARGIN
         g.SetFont("s9", this.FONT)
         hintH := 0
         for line in Txt.EditorHintLines {
-            line := RegExReplace(line, "<a[^>]*>|</a>", "")       ; ссылку в спайке не рисуем
-            ctrl := g.AddText(Format("x{} y{} w{} Hidden c{}", this.MARGIN, y + hintH, contentW - 64, this.COL_HINT), line)
-            this._hints.Push(ctrl)
-            ctrl.GetPos(, , , &ch)
+            ch := 0
+            if RegExMatch(line, "^(.*?)<a[^>]*>(.*?)</a>(.*)$", &m) {
+                ; строка со ссылкой: обычный текст + фиолетовая «даст ¢» -> бусти
+                ctrl := g.AddText(Format("x{} y{} Hidden c{}", this.MARGIN, y + hintH, this.COL_HINT), m[1])
+                this._hints.Push(ctrl)
+                ctrl.GetPos(&tx, , &tw, &ch)
+                g.SetFont("s9 underline", this.FONT)
+                link := g.AddText(Format("x{} y{} Hidden c{}", tx + tw + 4, y + hintH, this.COL_SHIFT), m[2])
+                g.SetFont("s9 norm", this.FONT)
+                link.OnEvent("Click", (*) => Run(this.DONATE_URL))
+                this._hints.Push(link)
+            } else {
+                ctrl := g.AddText(Format("x{} y{} w{} Hidden c{}", this.MARGIN, y + hintH, contentW - 64, this.COL_HINT), line)
+                this._hints.Push(ctrl)
+                ctrl.GetPos(, , , &ch)
+            }
             hintH += ch + 4
         }
 
@@ -166,14 +183,18 @@ class Editor2 {
                 ctrl.OnEvent("Click", (*) => Run(this.LOGO_URL))
         }
 
-        contentH := 5 * KH + 4 * GAP + this.MARGIN + hintH
+        ; окно компактное; по ⓘ подрастает на высоту подсказки
+        this._winW := contentW + 2 * this.MARGIN
+        this._baseH := 5 * KH + 4 * GAP + 2 * this.MARGIN
+        this._fullH := this._baseH + this.MARGIN + hintH
         OnMessage(0x200, ObjBindMethod(this, "OnMouseMove"))      ; WM_MOUSEMOVE -> ховер
-        g.Show(Format("w{} h{} Hide", contentW + 2 * this.MARGIN, contentH + 2 * this.MARGIN))
+        g.Show(Format("w{} h{} Hide", this._winW, this._baseH))
     }
 
-    ; ⓘ: показать/спрятать подсказку (и лого)
+    ; ⓘ: показать/спрятать подсказку (и лого); окно растёт/сжимается
     static ToggleHints(*) {
         this._hintsOn := !this._hintsOn
+        this._gui.Show(Format("w{} h{}", this._winW, this._hintsOn ? this._fullH : this._baseH))
         for ctrl in this._hints
             ctrl.Visible := this._hintsOn
         if IsObject(this._logo) {
@@ -187,23 +208,12 @@ class Editor2 {
     ;  Конструкторы клавиш. Каждая возвращает x следующей клавиши.
     ; -------------------------------------------------------------------------
 
-    ; тело клавиши — Text с тёмным фоном (кнопки не умеют цвет, UI-SPIKE §3.2),
-    ; скруглённое регионом окна (GDI-регион без антиалиасинга — смотрим на скринах)
+    ; тело клавиши — Text с тёмным фоном (кнопки не умеют цвет, UI-SPIKE §3.2).
+    ; Скругления убраны решением владельца («виндовый стилёк» устраивает).
     static AddBody(g, x, y, w, h := -1, bg := "") {
         h := (h = -1) ? this.KH : h
         bg := (bg = "") ? this.COL_KEY : bg
-        body := g.AddText(Format("x{} y{} w{} h{} Background{}", x, y, w, h, bg))
-        this.RoundCtrl(body, w, h)
-        return body
-    }
-
-    ; скругление контрола: регион в физических пикселях (DPIScale сам не масштабирует регионы)
-    static RoundCtrl(ctrl, w, h, r := 8) {
-        s := A_ScreenDPI / 96
-        d := Round(2 * r * s)                    ; CreateRoundRectRgn ждёт диаметр эллипса угла
-        rgn := DllCall("CreateRoundRectRgn", "int", 0, "int", 0,
-            "int", Round(w * s) + 1, "int", Round(h * s) + 1, "int", d, "int", d, "ptr")
-        DllCall("SetWindowRgn", "ptr", ctrl.Hwnd, "ptr", rgn, "int", true)
+        return g.AddText(Format("x{} y{} w{} h{} Background{}", x, y, w, h, bg))
     }
 
     ; mappable-кейкап: тело + 3 слоя подписей — Alt+Shift (верх, акцент),
@@ -282,8 +292,9 @@ class Editor2 {
     }
 
     ; декор-клавиша: тело + один приглушённый глиф; align: BL/BR/B (низ) / C (центр);
-    ; clickFn и bg — для «почти декора» вроде ⓘ (кликабельный -> светлее)
-    static AddDecor(g, x, y, w, glyph, align := "C", color := "", clickFn := "", bg := "") {
+    ; clickFn и bg — для «почти декора» вроде ⓘ (кликабельный -> светлее);
+    ; hoverKey — включить ховер-подсветку (регистрирует слои как псевдо-кейкап)
+    static AddDecor(g, x, y, w, glyph, align := "C", color := "", clickFn := "", bg := "", hoverKey := "") {
         color := (color = "") ? this.COL_BASE : color
         bg := (bg = "") ? this.COL_DECOR : bg
         body := this.AddBody(g, x, y, w, -1, bg)
@@ -298,6 +309,11 @@ class Editor2 {
         if (clickFn != "") {
             body.OnEvent("Click", clickFn)
             label.OnEvent("Click", clickFn)
+        }
+        if (hoverKey != "") {
+            this._caps[hoverKey] := {layers: [body, label]}
+            this._byHwnd[body.Hwnd] := hoverKey
+            this._byHwnd[label.Hwnd] := hoverKey
         }
         return x + w + this.GAP
     }
@@ -323,11 +339,11 @@ class Editor2 {
         SetTimer(() => ToolTip(), -2500)
     }
 
-    ; подсвеченная хайп-клавиша (правый Alt) — светлое тело, тёмная подпись
+    ; подсвеченная хайп-клавиша (правый Alt) — светлое тело, тёмная подпись вниз-вправо
     static AddHypeKey(g, x, y, w) {
         this.AddBody(g, x, y, w, -1, this.COL_HYPE)
         g.SetFont("s9", this.FONT)
-        g.AddText(Format("x{} y{} w{} Center Background{} c1A1A1A", x + 2, y + this.KH // 2 - 7, w - 4, this.COL_HYPE),
+        g.AddText(Format("x{} y{} w{} Right Background{} c1A1A1A", x + 8, y + this.KH - 20, w - 16, this.COL_HYPE),
             "alt")
         return x + w + this.GAP
     }
@@ -403,7 +419,6 @@ class Editor2 {
     ; плоская кнопка из Text-контролов (нативные не красятся): тело + подпись
     static AddFlatButton(g, x, y, w, h, text, bg, fg, clickFn) {
         body := g.AddText(Format("x{} y{} w{} h{} Background{}", x, y, w, h, bg))
-        this.RoundCtrl(body, w, h)
         label := g.AddText(Format("x{} y{} w{} Center Background{} c{}", x, y + (h - 18) // 2, w, bg, fg), text)
         body.OnEvent("Click", clickFn)
         label.OnEvent("Click", clickFn)
