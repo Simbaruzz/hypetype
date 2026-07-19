@@ -44,6 +44,8 @@ class Editor2 {
     static COL_BASE := "757575"     ; буква клавиши и декор-глифы
     static COL_HINT := "8C8C8C"     ; текст подсказки внизу
     static FONT := "Segoe UI"       ; системный; глифы добирает фонт-линкинг GDI
+    static FONT_GLYPH := "Segoe UI Symbol"  ; слои символов кейкапов: есть ␣ и другие
+                                    ; глифы, которых нет в Segoe UI (UI-SPIKE §3.3)
 
     ; невидимые пробельные символы -> прямоугольник примерно их ширины
     ; (механика мака: узкий/волосяной пробел видно прямо на клавише);
@@ -231,16 +233,17 @@ class Editor2 {
     static AddKeycap(g, x, y, w, name) {
         body := this.AddBody(g, x, y, w)
         k := Config.GetKey(name)
-        g.SetFont("s8", this.FONT)
+        g.SetFont("s8", this.FONT_GLYPH)
         shiftCtrl := g.AddText(Format("x{} y{} w{} h14 Right Background{} c{}",
             x + 6, y + 5, w - 12, this.COL_KEY, this.COL_SHIFT), this.KeyRepr(k.altShift))
         baseW := (name = "Space") ? 60 : 18
         g.SetFont("s9", this.FONT)
         baseCtrl := g.AddText(Format("x{} y{} w{} h16 Background{} c{}",
             x + 6, y + this.KH - 21, baseW, this.COL_KEY, this.COL_BASE), this.DISPLAY[name])
-        g.SetFont("s12", this.FONT)
-        altCtrl := g.AddText(Format("x{} y{} w{} h20 Right Background{} c{}",
-            x + 6 + baseW, y + this.KH - 26, w - baseW - 12, this.COL_KEY, this.COL_MAIN), this.KeyRepr(k.alt))
+        g.SetFont("s12", this.FONT_GLYPH)
+        ; h23: у ␣ перекладина на базовой линии — при h20 её срезало (виднелись «..»)
+        altCtrl := g.AddText(Format("x{} y{} w{} h23 Right Background{} c{}",
+            x + 6 + baseW, y + this.KH - 28, w - baseW - 12, this.COL_KEY, this.COL_MAIN), this.KeyRepr(k.alt))
         layers := [body, shiftCtrl, baseCtrl, altCtrl]
         this._caps[name] := {alt: altCtrl, shift: shiftCtrl, layers: layers}
         cb := ObjBindMethod(this, "OnKeyClick", name)

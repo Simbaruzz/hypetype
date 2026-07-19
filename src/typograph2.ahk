@@ -80,29 +80,39 @@ class TypoWin {
     }
 
     ; -------------------------------------------------------------------------
+    ;  Одно «визуальное» окно, два состояния (как на маке): при открытии
+    ;  настроек окно клавиатуры прячется, настройки встают на его место;
+    ;  «закрыть»/«сохранить»/Esc возвращают клавиатуру.
+    ; -------------------------------------------------------------------------
     static Open(owner) {
         this.Close()                             ; одно окно за раз, всегда свежие данные
         this._owner := owner
         this.Build()
-        owner.Opt("+Disabled")
+        WinGetPos(&wx, &wy, , , "ahk_id " owner.Hwnd)     ; физические координаты
+        dhw := A_DetectHiddenWindows
+        DetectHiddenWindows true                          ; окно настроек ещё скрыто
+        WinMove(wx, wy, , , "ahk_id " this._gui.Hwnd)     ; на место клавиатуры
+        DetectHiddenWindows dhw
+        owner.Hide()
         this._gui.Show()
     }
 
     static Close() {
         if !this._gui
             return
-        if IsObject(this._owner)
-            this._owner.Opt("-Disabled")
         try this._gui.Destroy()
         this._gui := ""
         this._toggles := Map(), this._drops := Map()
         this._mainCtrls := [], this._aboutCtrls := [], this._sideItems := Map()
         this._tab := "main"
+        if IsObject(this._owner)
+            this._owner.Show()                   ; вернуть клавиатуру на том же месте
     }
 
     static Build() {
         E := Editor2                             ; палитра и помощники спайка
-        g := Gui("-Resize +Owner" this._owner.Hwnd, Txt.MainTitle)
+        ; без +Owner: владелец прячется, а owned-окно не даёт кнопку в таскбаре
+        g := Gui("-Resize", Txt.MainTitle)
         g.BackColor := E.COL_BG
         E.ApplyDarkTitle(g)
         this._gui := g
