@@ -32,3 +32,5 @@ build_test/
 .vscode/
 *.sublime-workspace
 *.sublime-project
+# Личные настройки Claude Code
+.claude/settings.local.json
