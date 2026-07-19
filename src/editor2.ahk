@@ -14,6 +14,9 @@ class Editor2 {
     static _hints := []             ; Text-контролы подсказки (переключаются ⓘ)
     static _byHwnd := Map()         ; hwnd слоя -> w3cName (для ховера)
     static _hover := ""             ; подсвеченный кейкап ("" = нет)
+    static _handHwnds := Map()      ; hwnd кликабельного контрола -> true (курсор-«рука»)
+    static _handCur := 0            ; хэндл IDC_HAND
+    static _arrowCur := 0           ; хэндл IDC_ARROW
     static _hintsOn := false        ; подсказка (и лого) видимы
     static _logo := ""              ; Picture лого в хинт-зоне ("" = png не найден)
     static _lion := ""              ; Picture лев (показывается при ховере)
@@ -159,6 +162,7 @@ class Editor2 {
                 link := g.AddText(Format("x{} y{} Hidden c{}", tx + tw + 4, y + hintH, this.COL_SHIFT), m[2])
                 g.SetFont("s9 norm", this.FONT)
                 link.OnEvent("Click", (*) => Run(this.DONATE_URL))
+                this.MakeHand([link])
                 this._hints.Push(link)
             } else {
                 ctrl := g.AddText(Format("x{} y{} w{} Hidden c{}", this.MARGIN, y + hintH, contentW - 64, this.COL_HINT), line)
@@ -181,6 +185,7 @@ class Editor2 {
                 FileExist(lionPath) ? lionPath : logoPath)
             for ctrl in [this._logo, this._lion]
                 ctrl.OnEvent("Click", (*) => Run(this.LOGO_URL))
+            this.MakeHand([this._logo, this._lion])
         }
 
         ; окно компактное; по ⓘ подрастает на высоту подсказки
@@ -188,6 +193,11 @@ class Editor2 {
         this._baseH := 5 * KH + 4 * GAP + 2 * this.MARGIN
         this._fullH := this._baseH + this.MARGIN + hintH
         OnMessage(0x200, ObjBindMethod(this, "OnMouseMove"))      ; WM_MOUSEMOVE -> ховер
+        ; курсор-«рука» над кликабельным: Static сам курсор не задаёт, поэтому
+        ; перехватываем WM_SETCURSOR и ставим IDC_HAND вместо стрелки
+        this._handCur := DllCall("LoadCursor", "ptr", 0, "ptr", 32649, "ptr")   ; IDC_HAND
+        this._arrowCur := DllCall("LoadCursor", "ptr", 0, "ptr", 32512, "ptr")  ; IDC_ARROW
+        OnMessage(0x20, ObjBindMethod(this, "OnSetCursor"))       ; WM_SETCURSOR
         g.Show(Format("w{} h{} Hide", this._winW, this._baseH))
     }
 
@@ -239,6 +249,7 @@ class Editor2 {
             ctrl.OnEvent("Click", cb)
             this._byHwnd[ctrl.Hwnd] := name
         }
+        this.MakeHand(layers)
         return x + w + this.GAP
     }
 
@@ -246,6 +257,29 @@ class Editor2 {
     ;  Ховер (UI-SPIKE §3.2, опционально): подсветка кейкапа под мышью.
     ;  Если замерцает/подтормозит — выбросить, не упираться.
     ; -------------------------------------------------------------------------
+    ; WM_SETCURSOR: контрол под мышью определяем сами (wParam может быть
+    ; top-level окном). Кликабельный -> «рука»; прочие Static -> явная стрелка
+    ; (иначе рука «залипает»); Edit и др. не трогаем — у них свой курсор.
+    static OnSetCursor(wParam, lParam, msg, hwnd) {
+        MouseGetPos , , , &ctl, 2                   ; hwnd контрола под курсором
+        if this._handHwnds.Has(ctl) {
+            DllCall("SetCursor", "ptr", this._handCur)
+            return 1                                ; обработано — системную стрелку не ставить
+        }
+        try cls := WinGetClass("ahk_id " ctl)
+        catch
+            return
+        if (cls = "Static") {
+            DllCall("SetCursor", "ptr", this._arrowCur)
+            return 1
+        }
+    }
+
+    static MakeHand(ctrls) {
+        for c in ctrls
+            this._handHwnds[c.Hwnd] := true
+    }
+
     static OnMouseMove(wParam, lParam, msg, hwnd) {
         ; лого <-> лев при ховере
         if (this._hintsOn && IsObject(this._logo)) {
@@ -309,6 +343,7 @@ class Editor2 {
         if (clickFn != "") {
             body.OnEvent("Click", clickFn)
             label.OnEvent("Click", clickFn)
+            this.MakeHand([body, label])
         }
         if (hoverKey != "") {
             this._caps[hoverKey] := {layers: [body, label]}
@@ -331,6 +366,7 @@ class Editor2 {
         cb := ObjBindMethod(this, "ShowTypoStub")
         for ctrl in [body, cap, glyph]
             ctrl.OnEvent("Click", cb)
+        this.MakeHand([body, cap, glyph])
         return x + w + this.GAP
     }
 
@@ -422,6 +458,7 @@ class Editor2 {
         label := g.AddText(Format("x{} y{} w{} Center Background{} c{}", x, y + (h - 18) // 2, w, bg, fg), text)
         body.OnEvent("Click", clickFn)
         label.OnEvent("Click", clickFn)
+        this.MakeHand([body, label])
     }
 
     ; полупрозрачная чёрная вуаль поверх окна редактора на время попапа.
