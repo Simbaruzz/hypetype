@@ -10,6 +10,12 @@
 class Editor2 {
     static _gui := ""
     static _caps := Map()           ; w3cName -> {alt: Text, shift: Text} для обновления подписей
+    static _editGui := ""           ; попап правки (один за раз)
+    static _hints := []             ; Text-контролы подсказки (переключаются ⓘ)
+
+    ; строки спайка (в общий strings.ahk не лезем до вердикта)
+    static STR_CANCEL := "отмена"
+    static STR_TYPO_STUB := "Типограф работает так: выделите текст и нажмите Alt + Backspace"
 
     ; --- палитра (тона по скриншотам мака, _preview/) ---
     static COL_BG   := "121212"     ; фон окна
@@ -100,7 +106,7 @@ class Editor2 {
         x := this.MARGIN, y += KH + GAP
         arrowsW := 3 * U + 2 * GAP
         spaceW := contentW - 7 * U - arrowsW - 10 * GAP
-        x := this.AddDecor(g, x, y, U, Chr(0x24D8), "C")                 ; ⓘ
+        x := this.AddDecor(g, x, y, U, Chr(0x24D8), "C", "", ObjBindMethod(this, "ToggleHints"))  ; ⓘ
         for label in ["ctrl", "win", "alt"]
             x := this.AddDecor(g, x, y, U, label, "C")
         x := this.AddKeycap(g, x, y, spaceW, "Space")
@@ -109,8 +115,26 @@ class Editor2 {
             x := this.AddDecor(g, x, y, U, label, "C")
         this.AddArrows(g, x, y)
 
-        contentH := 5 * KH + 4 * GAP
+        ; --- подсказка под клавиатурой (появляется по ⓘ, место зарезервировано) ---
+        y += KH + this.MARGIN
+        g.SetFont("s9", this.FONT)
+        hintH := 0
+        for line in Txt.EditorHintLines {
+            line := RegExReplace(line, "<a[^>]*>|</a>", "")       ; ссылку в спайке не рисуем
+            ctrl := g.AddText(Format("x{} y{} w{} Hidden c{}", this.MARGIN, y + hintH, contentW, this.COL_HINT), line)
+            this._hints.Push(ctrl)
+            ctrl.GetPos(, , , &ch)
+            hintH += ch + 4
+        }
+
+        contentH := 5 * KH + 4 * GAP + this.MARGIN + hintH
         g.Show(Format("w{} h{} Hide", contentW + 2 * this.MARGIN, contentH + 2 * this.MARGIN))
+    }
+
+    ; ⓘ: показать/спрятать подсказку
+    static ToggleHints(*) {
+        for ctrl in this._hints
+            ctrl.Visible := !ctrl.Visible
     }
 
     ; -------------------------------------------------------------------------
@@ -125,21 +149,25 @@ class Editor2 {
     }
 
     ; mappable-кейкап: тело + 3 слоя подписей — Alt+Shift (верх, акцент),
-    ; буква (низ-лево, приглушена), Alt-символ (низ-право, белый)
+    ; буква (низ-лево, приглушена), Alt-символ (низ-право, белый).
+    ; Клик по любому слою открывает попап правки (вопрос эксперимента №3).
     static AddKeycap(g, x, y, w, name) {
-        this.AddBody(g, x, y, w)
+        body := this.AddBody(g, x, y, w)
         k := Config.GetKey(name)
         g.SetFont("s8", this.FONT)
         shiftCtrl := g.AddText(Format("x{} y{} w{} h14 Right Background{} c{}",
             x + 6, y + 5, w - 12, this.COL_KEY, this.COL_SHIFT), this.KeyRepr(k.altShift))
         baseW := (name = "Space") ? 60 : 18
         g.SetFont("s9", this.FONT)
-        g.AddText(Format("x{} y{} w{} h16 Background{} c{}",
+        baseCtrl := g.AddText(Format("x{} y{} w{} h16 Background{} c{}",
             x + 6, y + this.KH - 21, baseW, this.COL_KEY, this.COL_BASE), this.DISPLAY[name])
         g.SetFont("s12", this.FONT)
         altCtrl := g.AddText(Format("x{} y{} w{} h20 Right Background{} c{}",
             x + 6 + baseW, y + this.KH - 26, w - baseW - 12, this.COL_KEY, this.COL_MAIN), this.KeyRepr(k.alt))
         this._caps[name] := {alt: altCtrl, shift: shiftCtrl}
+        cb := ObjBindMethod(this, "OnKeyClick", name)
+        for ctrl in [body, shiftCtrl, baseCtrl, altCtrl]
+            ctrl.OnEvent("Click", cb)
         return x + w + this.GAP
     }
 
@@ -161,10 +189,11 @@ class Editor2 {
         return out
     }
 
-    ; декор-клавиша: тело + один приглушённый глиф; align: BL/BR/L/R/C
-    static AddDecor(g, x, y, w, glyph, align := "C", color := "") {
+    ; декор-клавиша: тело + один приглушённый глиф; align: BL/BR/L/R/C;
+    ; clickFn — для «почти декора» вроде ⓘ
+    static AddDecor(g, x, y, w, glyph, align := "C", color := "", clickFn := "") {
         color := (color = "") ? this.COL_BASE : color
-        this.AddBody(g, x, y, w)
+        body := this.AddBody(g, x, y, w)
         g.SetFont("s9", this.FONT)
         switch align {
             case "BL": opt := Format("x{} y{} w{}", x + 8, y + this.KH - 20, w - 16)
@@ -173,20 +202,32 @@ class Editor2 {
             case "R":  opt := Format("x{} y{} w{} Right", x + 10, y + this.KH // 2 - 7, w - 20)
             default:   opt := Format("x{} y{} w{} Center", x + 2, y + this.KH // 2 - 7, w - 4)
         }
-        g.AddText(opt " Background1E1E1E c" color, glyph)
+        label := g.AddText(opt " Background1E1E1E c" color, glyph)
+        if (clickFn != "") {
+            body.OnEvent("Click", clickFn)
+            label.OnEvent("Click", clickFn)
+        }
         return x + w + this.GAP
     }
 
-    ; широкая клавиша ТИПОГРАФ на месте Backspace
+    ; широкая клавиша ТИПОГРАФ на месте Backspace; клик — заглушка-подсказка
     static AddTypoKey(g, x, y, w) {
-        this.AddBody(g, x, y, w)
+        body := this.AddBody(g, x, y, w)
         g.SetFont("s8", this.FONT)
-        g.AddText(Format("x{} y{} w{} Center Background1E1E1E c{}", x + 2, y + 8, w - 4, this.COL_MAIN),
+        cap := g.AddText(Format("x{} y{} w{} Center Background1E1E1E c{}", x + 2, y + 8, w - 4, this.COL_MAIN),
             "ТИПОГРАФ")
         g.SetFont("s10", this.FONT)
-        g.AddText(Format("x{} y{} w{} Center Background1E1E1E c{}", x + 2, y + this.KH - 24, w - 4, this.COL_BASE),
+        glyph := g.AddText(Format("x{} y{} w{} Center Background1E1E1E c{}", x + 2, y + this.KH - 24, w - 4, this.COL_BASE),
             Chr(0x232B))                                          ; ⌫
+        cb := ObjBindMethod(this, "ShowTypoStub")
+        for ctrl in [body, cap, glyph]
+            ctrl.OnEvent("Click", cb)
         return x + w + this.GAP
+    }
+
+    static ShowTypoStub(*) {
+        ToolTip(this.STR_TYPO_STUB)
+        SetTimer(() => ToolTip(), -2500)
     }
 
     ; подсвеченная хайп-клавиша (правый Alt) — светлое тело, тёмная подпись
@@ -210,6 +251,76 @@ class Editor2 {
                 pair[3])
         }
         return x + 3 * this.U + 2 * this.GAP + this.GAP
+    }
+
+    ; -------------------------------------------------------------------------
+    ;  Попап правки клавиши (UI-SPIKE §3.5): тёмное окно, модальность через
+    ;  Disable владельца. Сохранение — валидация как в editor.ahk -> Config.SetKey.
+    ; -------------------------------------------------------------------------
+
+    static OnKeyClick(name, *) {
+        this.CloseEdit()
+        k := Config.GetKey(name)
+        eg := Gui("+Owner" this._gui.Hwnd " -MinimizeBox -MaximizeBox +ToolWindow",
+            Txt.EditTitlePrefix this.DISPLAY[name] Txt.EditTitleSuffix)
+        this._editGui := eg
+        eg.BackColor := this.COL_BG
+        this.ApplyDarkTitle(eg)
+        eg.MarginX := 20, eg.MarginY := 16
+
+        eg.SetFont("s10", this.FONT)
+        eg.AddText("c" this.COL_HINT, Txt.EditAltShift)
+        eg.SetFont("s20", this.FONT)
+        ; тёмный Edit: пробуем Background + светлый текст (вопрос эксперимента №4)
+        shiftEdit := eg.AddEdit(Format("w320 Background{} c{}", this.COL_KEY, this.COL_MAIN), k.altShift)
+
+        eg.SetFont("s10", this.FONT)
+        eg.AddText("c" this.COL_HINT, Txt.EditAlt)
+        eg.SetFont("s20", this.FONT)
+        altEdit := eg.AddEdit(Format("w320 Background{} c{}", this.COL_KEY, this.COL_MAIN), k.alt)
+
+        eg.SetFont("s10", this.FONT)
+        cancelBtn := eg.AddButton("w150", this.STR_CANCEL)
+        saveBtn := eg.AddButton("x+20 w150 Default", Txt.EditSave)
+        saveBtn.OnEvent("Click", (*) => this.OnSave(name, altEdit, shiftEdit))
+        cancelBtn.OnEvent("Click", (*) => this.CloseEdit())
+        eg.OnEvent("Close", (*) => this.CloseEdit())
+        eg.OnEvent("Escape", (*) => this.CloseEdit())
+
+        this._gui.Opt("+Disabled")              ; модальность: владелец выключен
+        eg.Show()
+    }
+
+    static CloseEdit() {
+        if !this._editGui
+            return
+        this._gui.Opt("-Disabled")              ; вернуть владельца ДО Destroy (иначе фокус уйдёт)
+        try this._editGui.Destroy()
+        this._editGui := ""
+    }
+
+    static OnSave(name, altEdit, shiftEdit) {
+        alt := RegExReplace(altEdit.Value, "[\r\n]", "")      ; валидация как в editor.ahk
+        shift := RegExReplace(shiftEdit.Value, "[\r\n]", "")
+        if (this.CpCount(alt) > 32 || this.CpCount(shift) > 32) {
+            MsgBox(Txt.TooLongBody, Txt.TooLongTitle, "Icon!")
+            return
+        }
+        Config.SetKey(name, alt, shift)
+        this._caps[name].alt.Text := this.KeyRepr(alt)
+        this._caps[name].shift.Text := this.KeyRepr(shift)
+        this.CloseEdit()
+    }
+
+    ; кодпоинты, суррогатная пара = 1 (как editor.ahk)
+    static CpCount(s) {
+        n := 0, i := 1, len := StrLen(s)
+        while (i <= len) {
+            cp := Ord(SubStr(s, i, 2))
+            i += (cp > 0xFFFF) ? 2 : 1
+            n++
+        }
+        return n
     }
 
     ; тёмный заголовок: DWMWA_USE_IMMERSIVE_DARK_MODE = 20, фолбэк 19 (UI-SPIKE §3.3)
