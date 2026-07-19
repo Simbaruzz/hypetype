@@ -14,6 +14,11 @@ class Editor2 {
     static _hints := []             ; Text-контролы подсказки (переключаются ⓘ)
     static _byHwnd := Map()         ; hwnd слоя -> w3cName (для ховера)
     static _hover := ""             ; подсвеченный кейкап ("" = нет)
+    static _hintsOn := false        ; подсказка (и лого) видимы
+    static _logo := ""              ; Picture лого в хинт-зоне ("" = png не найден)
+    static _lion := ""              ; Picture лев (показывается при ховере)
+    static _logoHover := false
+    static LOGO_URL := "https://simbarus.com/hypetype"
 
     ; строки спайка (в общий strings.ahk не лезем до вердикта)
     static STR_CANCEL := "отмена"
@@ -140,10 +145,25 @@ class Editor2 {
         hintH := 0
         for line in Txt.EditorHintLines {
             line := RegExReplace(line, "<a[^>]*>|</a>", "")       ; ссылку в спайке не рисуем
-            ctrl := g.AddText(Format("x{} y{} w{} Hidden c{}", this.MARGIN, y + hintH, contentW, this.COL_HINT), line)
+            ctrl := g.AddText(Format("x{} y{} w{} Hidden c{}", this.MARGIN, y + hintH, contentW - 64, this.COL_HINT), line)
             this._hints.Push(ctrl)
             ctrl.GetPos(, , , &ch)
             hintH += ch + 4
+        }
+
+        ; лого справа от подсказки: logo.png, при ховере lion.png, клик -> сайт.
+        ; PNG кладутся в assets\ (SVG натив не умеет); нет файлов — нет лого.
+        logoPath := A_ScriptDir "\..\assets\logo.png"
+        lionPath := A_ScriptDir "\..\assets\lion.png"
+        if FileExist(logoPath) {
+            lw := 48
+            lx := this.MARGIN + contentW - lw
+            ly := y + Max(0, (hintH - lw) // 2)
+            this._logo := g.AddPicture(Format("x{} y{} w{} h{} Hidden", lx, ly, lw, lw), logoPath)
+            this._lion := g.AddPicture(Format("x{} y{} w{} h{} Hidden", lx, ly, lw, lw),
+                FileExist(lionPath) ? lionPath : logoPath)
+            for ctrl in [this._logo, this._lion]
+                ctrl.OnEvent("Click", (*) => Run(this.LOGO_URL))
         }
 
         contentH := 5 * KH + 4 * GAP + this.MARGIN + hintH
@@ -151,10 +171,16 @@ class Editor2 {
         g.Show(Format("w{} h{} Hide", contentW + 2 * this.MARGIN, contentH + 2 * this.MARGIN))
     }
 
-    ; ⓘ: показать/спрятать подсказку
+    ; ⓘ: показать/спрятать подсказку (и лого)
     static ToggleHints(*) {
+        this._hintsOn := !this._hintsOn
         for ctrl in this._hints
-            ctrl.Visible := !ctrl.Visible
+            ctrl.Visible := this._hintsOn
+        if IsObject(this._logo) {
+            this._logoHover := false
+            this._logo.Visible := this._hintsOn
+            this._lion.Visible := false
+        }
     }
 
     ; -------------------------------------------------------------------------
@@ -211,6 +237,15 @@ class Editor2 {
     ;  Если замерцает/подтормозит — выбросить, не упираться.
     ; -------------------------------------------------------------------------
     static OnMouseMove(wParam, lParam, msg, hwnd) {
+        ; лого <-> лев при ховере
+        if (this._hintsOn && IsObject(this._logo)) {
+            overLogo := (hwnd = this._logo.Hwnd || hwnd = this._lion.Hwnd)
+            if (overLogo != this._logoHover) {
+                this._logoHover := overLogo
+                this._logo.Visible := !overLogo
+                this._lion.Visible := overLogo
+            }
+        }
         name := this._byHwnd.Has(hwnd) ? this._byHwnd[hwnd] : ""
         if (name = this._hover)
             return
