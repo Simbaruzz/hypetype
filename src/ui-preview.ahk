@@ -10,6 +10,7 @@
 #Include strings.ahk
 #Include config.ahk
 #Include editor2.ahk
+#Include typograph2.ahk
 
 ; при запуске интерпретатором иконка была бы AutoHotkey; в собранном exe
 ; её вшивает Ahk2Exe (/icon assets\icon.ico, см. build.yml) — тут ставим сами

@@ -30,7 +30,6 @@ class Editor2 {
     ; строки спайка (в общий strings.ahk не лезем до вердикта)
     static STR_CANCEL := "отмена"
     static STR_SAVE := "сохранить"  ; строчными, как на маке (Txt.EditSave — с заглавной)
-    static STR_TYPO_STUB := "Типограф работает так: выделите текст и нажмите Alt + Backspace"
     static STR_PASTE := "вставьте нужные символы из буфера обмена Ctrl+V"
     static _shade := ""             ; вуаль-затемнение под попапом
 
@@ -370,9 +369,9 @@ class Editor2 {
         return x + w + this.GAP
     }
 
+    ; клик по ТИПОГРАФ — окно настроек типографа (typograph2.ahk, Стадия 2)
     static ShowTypoStub(*) {
-        ToolTip(this.STR_TYPO_STUB)
-        SetTimer(() => ToolTip(), -2500)
+        TypoWin.Open(this._gui)
     }
 
     ; подсвеченная хайп-клавиша (правый Alt) — светлое тело, тёмная подпись вниз-вправо

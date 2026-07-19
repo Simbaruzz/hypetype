@@ -369,6 +369,13 @@ class Config {
             this._data["typograph"] := this.ParseText(FileRead(this.Path, "UTF-8"))["typograph"]
     }
 
+    ; Записать пачку настроек [Typograph] и сохранить (окно настроек типографа).
+    static SetTypographSettings(settings) {
+        for k, v in settings
+            this._data["typograph"][k] := v
+        this.Save()
+    }
+
     ; Переключить булеву настройку [Typograph] 0<->1 и сохранить. Возвращает новое значение.
     static ToggleTypograph(name, default := "0") {
         this.RefreshTypograph()                                    ; синхронизироваться с файлом
