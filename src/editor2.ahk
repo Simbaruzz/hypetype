@@ -25,7 +25,7 @@ class Editor2 {
     static COL_KEY_HOVER := "2E2E2E" ; тело клавиши под мышью
     static COL_HYPE := "F2F2F2"     ; подсвеченная хайп-клавиша (правый Alt)
     static COL_MAIN := "FFFFFF"     ; основной символ (с Alt)
-    static COL_SHIFT := "B873FF"    ; Shift-символ (фиолетовый акцент)
+    static COL_SHIFT := "B873FF"    ; Shift-символ (фиолетовый акцент; серый вариант — на скрине gray-shift)
     static COL_BASE := "757575"     ; буква клавиши и декор-глифы
     static COL_HINT := "8C8C8C"     ; текст подсказки внизу
     static FONT := "Segoe UI"       ; системный; глифы добирает фонт-линкинг GDI
