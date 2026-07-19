@@ -12,6 +12,8 @@ class Editor2 {
     static _caps := Map()           ; w3cName -> {alt: Text, shift: Text} для обновления подписей
     static _editGui := ""           ; попап правки (один за раз)
     static _hints := []             ; Text-контролы подсказки (переключаются ⓘ)
+    static _byHwnd := Map()         ; hwnd слоя -> w3cName (для ховера)
+    static _hover := ""             ; подсвеченный кейкап ("" = нет)
 
     ; строки спайка (в общий strings.ahk не лезем до вердикта)
     static STR_CANCEL := "отмена"
@@ -20,6 +22,7 @@ class Editor2 {
     ; --- палитра (тона по скриншотам мака, _preview/) ---
     static COL_BG   := "121212"     ; фон окна
     static COL_KEY  := "1E1E1E"     ; тело клавиши
+    static COL_KEY_HOVER := "2E2E2E" ; тело клавиши под мышью
     static COL_HYPE := "F2F2F2"     ; подсвеченная хайп-клавиша (правый Alt)
     static COL_MAIN := "FFFFFF"     ; основной символ (с Alt)
     static COL_SHIFT := "B873FF"    ; Shift-символ (фиолетовый акцент)
@@ -128,6 +131,7 @@ class Editor2 {
         }
 
         contentH := 5 * KH + 4 * GAP + this.MARGIN + hintH
+        OnMessage(0x200, ObjBindMethod(this, "OnMouseMove"))      ; WM_MOUSEMOVE -> ховер
         g.Show(Format("w{} h{} Hide", contentW + 2 * this.MARGIN, contentH + 2 * this.MARGIN))
     }
 
@@ -164,11 +168,36 @@ class Editor2 {
         g.SetFont("s12", this.FONT)
         altCtrl := g.AddText(Format("x{} y{} w{} h20 Right Background{} c{}",
             x + 6 + baseW, y + this.KH - 26, w - baseW - 12, this.COL_KEY, this.COL_MAIN), this.KeyRepr(k.alt))
-        this._caps[name] := {alt: altCtrl, shift: shiftCtrl}
+        layers := [body, shiftCtrl, baseCtrl, altCtrl]
+        this._caps[name] := {alt: altCtrl, shift: shiftCtrl, layers: layers}
         cb := ObjBindMethod(this, "OnKeyClick", name)
-        for ctrl in [body, shiftCtrl, baseCtrl, altCtrl]
+        for ctrl in layers {
             ctrl.OnEvent("Click", cb)
+            this._byHwnd[ctrl.Hwnd] := name
+        }
         return x + w + this.GAP
+    }
+
+    ; -------------------------------------------------------------------------
+    ;  Ховер (UI-SPIKE §3.2, опционально): подсветка кейкапа под мышью.
+    ;  Если замерцает/подтормозит — выбросить, не упираться.
+    ; -------------------------------------------------------------------------
+    static OnMouseMove(wParam, lParam, msg, hwnd) {
+        name := this._byHwnd.Has(hwnd) ? this._byHwnd[hwnd] : ""
+        if (name = this._hover)
+            return
+        if (this._hover != "")
+            this.PaintKey(this._hover, this.COL_KEY)
+        this._hover := name
+        if (name != "")
+            this.PaintKey(name, this.COL_KEY_HOVER)
+    }
+
+    static PaintKey(name, col) {
+        for ctrl in this._caps[name].layers {
+            ctrl.Opt("Background" col)
+            ctrl.Redraw()
+        }
     }
 
     ; отображение значения на кейкапе (UI-SPIKE §3.4): до 3 кодпоинтов + «…»,
