@@ -158,11 +158,23 @@ class Editor2 {
     ;  Конструкторы клавиш. Каждая возвращает x следующей клавиши.
     ; -------------------------------------------------------------------------
 
-    ; тело клавиши — Text с тёмным фоном (кнопки не умеют цвет, UI-SPIKE §3.2)
+    ; тело клавиши — Text с тёмным фоном (кнопки не умеют цвет, UI-SPIKE §3.2),
+    ; скруглённое регионом окна (GDI-регион без антиалиасинга — смотрим на скринах)
     static AddBody(g, x, y, w, h := -1, bg := "") {
         h := (h = -1) ? this.KH : h
         bg := (bg = "") ? this.COL_KEY : bg
-        return g.AddText(Format("x{} y{} w{} h{} Background{}", x, y, w, h, bg))
+        body := g.AddText(Format("x{} y{} w{} h{} Background{}", x, y, w, h, bg))
+        this.RoundCtrl(body, w, h)
+        return body
+    }
+
+    ; скругление контрола: регион в физических пикселях (DPIScale сам не масштабирует регионы)
+    static RoundCtrl(ctrl, w, h, r := 8) {
+        s := A_ScreenDPI / 96
+        d := Round(2 * r * s)                    ; CreateRoundRectRgn ждёт диаметр эллипса угла
+        rgn := DllCall("CreateRoundRectRgn", "int", 0, "int", 0,
+            "int", Round(w * s) + 1, "int", Round(h * s) + 1, "int", d, "int", d, "ptr")
+        DllCall("SetWindowRgn", "ptr", ctrl.Hwnd, "ptr", rgn, "int", true)
     }
 
     ; mappable-кейкап: тело + 3 слоя подписей — Alt+Shift (верх, акцент),
