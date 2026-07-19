@@ -10,14 +10,17 @@
 ; =============================================================================
 
 class TypoWin {
-    static _gui := ""
     static _toggles := Map()        ; key -> {body, knob, on, x, y}
     static _drops := Map()          ; key -> {ctrl, value, options}
     static _mainCtrls := []         ; контролы вкладки «Основные»
     static _aboutCtrls := []        ; контролы вкладки «О типографе»
     static _sideItems := Map()      ; tab -> {body, label}
     static _tab := "main"
-    static _owner := ""
+    static _kb := []                ; контролы клавиатуры (прячутся в режиме настроек)
+    static _all := []               ; все контролы настроек
+    static _built := false
+    static _openFlag := false       ; сейчас показан режим настроек
+    static _winH := 0               ; высота окна в режиме настроек
 
     ; --- палитра поверх Editor2 (тона из TypographSettingsView.swift) ---
     static COL_CARD := "1C1C1C"     ; карточка таблицы (white 0.11)
@@ -80,46 +83,95 @@ class TypoWin {
     }
 
     ; -------------------------------------------------------------------------
-    ;  Одно «визуальное» окно, два состояния (как на маке): при открытии
-    ;  настроек окно клавиатуры прячется, настройки встают на его место;
-    ;  «закрыть»/«сохранить»/Esc возвращают клавиатуру.
+    ;  ОДНО окно: настройки — второе состояние окна клавиатуры (как на маке).
+    ;  Контролы настроек живут в том же Gui; переключение — видимостью наборов
+    ;  + ресайз. Крестик окна закрывает приложение из любого состояния.
     ; -------------------------------------------------------------------------
-    static Open(owner) {
-        this.Close()                             ; одно окно за раз, всегда свежие данные
-        this._owner := owner
-        this.Build()
-        WinGetPos(&wx, &wy, , , "ahk_id " owner.Hwnd)     ; физические координаты
-        dhw := A_DetectHiddenWindows
-        DetectHiddenWindows true                          ; окно настроек ещё скрыто
-        WinMove(wx, wy, , , "ahk_id " this._gui.Hwnd)     ; на место клавиатуры
-        DetectHiddenWindows dhw
-        owner.Hide()
-        this._gui.Show()
+    static Open(*) {
+        g := Editor2._gui
+        DllCall("SendMessage", "ptr", g.Hwnd, "uint", 0xB, "ptr", 0, "ptr", 0)   ; WM_SETREDRAW off (WinTitle-поиск не годится: окно "теряет" WS_VISIBLE)
+        if !this._built {
+            kbSet := Map()
+            for hwnd, ctrl in g {                          ; всё, что уже есть — клавиатура
+                this._kb.Push(ctrl)
+                kbSet[hwnd] := true
+            }
+            this.Build(g)
+            for hwnd, ctrl in g
+                if !kbSet.Has(hwnd)
+                    this._all.Push(ctrl)
+            this._built := true
+        } else {
+            this.RefreshValues()                           ; свежие значения из Config
+        }
+        for ctrl in this._kb
+            ctrl.Visible := false
+        for ctrl in this._all
+            ctrl.Visible := true
+        this.ApplyTab()
+        DllCall("SendMessage", "ptr", g.Hwnd, "uint", 0xB, "ptr", 1, "ptr", 0)
+        g.Show(Format("w{} h{}", Editor2._winW, this._winH))
+        WinRedraw("ahk_id " g.Hwnd)
+        this._openFlag := true
     }
 
-    static Close() {
-        if !this._gui
+    ; вернуться к клавиатуре (закрыть/сохранить/Esc)
+    static Close(*) {
+        if !this._openFlag
             return
-        try this._gui.Destroy()
-        this._gui := ""
-        this._toggles := Map(), this._drops := Map()
-        this._mainCtrls := [], this._aboutCtrls := [], this._sideItems := Map()
-        this._tab := "main"
-        if IsObject(this._owner)
-            this._owner.Show()                   ; вернуть клавиатуру на том же месте
+        g := Editor2._gui
+        DllCall("SendMessage", "ptr", g.Hwnd, "uint", 0xB, "ptr", 0, "ptr", 0)
+        for ctrl in this._all
+            ctrl.Visible := false
+        for ctrl in this._kb
+            ctrl.Visible := true
+        Editor2.SyncHints()                                ; подсказка/лого — по состоянию ⓘ
+        DllCall("SendMessage", "ptr", g.Hwnd, "uint", 0xB, "ptr", 1, "ptr", 0)
+        g.Show(Format("w{} h{}", Editor2._winW, Editor2._hintsOn ? Editor2._fullH : Editor2._baseH))
+        WinRedraw("ahk_id " g.Hwnd)
+        this._openFlag := false
     }
 
-    static Build() {
+    ; видимость вкладок в режиме настроек
+    static ApplyTab() {
+        showMain := (this._tab = "main")
+        for c in this._mainCtrls
+            c.Visible := showMain
+        for key, tg in this._toggles {
+            tg.body.Visible := showMain
+            tg.knob.Visible := showMain
+        }
+        for key, dd in this._drops
+            dd.ctrl.Visible := showMain
+        for c in this._aboutCtrls
+            c.Visible := !showMain
+    }
+
+    ; обновить контролы значениями из Config (повторное открытие)
+    static RefreshValues() {
+        for key, tg in this._toggles {
+            on := Config.GetTypographSetting(key, this.DefaultFor(key)) = "1"
+            if (on != tg.on) {
+                tg.on := on
+                tg.body.Opt("Background" (on ? Editor2.COL_SHIFT : this.COL_OFF))
+                tg.knob.Move(tg.x + (on ? 19 : 3))
+            }
+        }
+        for key, dd in this._drops {
+            v := Config.GetTypographSetting(key, this.DefaultFor(key))
+            dd.value := v
+            dd.ctrl.Text := this.DropLabel(dd.options, v) " " Chr(0x25BE)
+        }
+    }
+
+    ; строит контролы настроек в ОБЩЕМ окне g (создаются поверх клавиатуры,
+    ; мерцания нет — вызывающий уже выключил WM_SETREDRAW)
+    static Build(g) {
         E := Editor2                             ; палитра и помощники спайка
-        ; без +Owner: владелец прячется, а owned-окно не даёт кнопку в таскбаре
-        g := Gui("-Resize", Txt.MainTitle)
-        g.BackColor := E.COL_BG
-        E.ApplyDarkTitle(g)
-        this._gui := g
 
         M := 20                                  ; поле окна
         sideW := 150, rightW := 96, gapX := 16
-        winW := 922                              ; как окно клавиатуры
+        winW := E._winW                          ; ширина окна клавиатуры
         cardX := M + sideW + gapX
         cardW := winW - 2 * M - sideW - rightW - 2 * gapX
         cardY := M
@@ -195,9 +247,7 @@ class TypoWin {
         E.AddFlatButton(g, xr, cardY, rightW, 32, "закрыть", "2E2E2E", "E0E0E0", (*) => this.Close())
         E.AddFlatButton(g, xr, winH - M - 32, rightW, 32, "сохранить", this.COL_SEL, "FFFFFF", (*) => this.Save())
 
-        g.OnEvent("Close", (*) => this.Close())
-        g.OnEvent("Escape", (*) => this.Close())
-        g.Show(Format("w{} h{} Hide", winW, winH))
+        this._winH := winH
     }
 
     ; пункт сайдбара; выбранный — синяя плашка
@@ -224,17 +274,7 @@ class TypoWin {
             item.label.Opt("Background" (sel ? this.COL_SEL : Editor2.COL_BG) " c" (sel ? "FFFFFF" : "CCCCCC"))
             item.body.Redraw(), item.label.Redraw()
         }
-        showMain := (tab = "main")
-        for c in this._mainCtrls
-            c.Visible := showMain
-        for key, tg in this._toggles {
-            tg.body.Visible := showMain
-            tg.knob.Visible := showMain
-        }
-        for key, dd in this._drops
-            dd.ctrl.Visible := showMain
-        for c in this._aboutCtrls
-            c.Visible := !showMain
+        this.ApplyTab()
     }
 
     ; -------------------------------------------------------------------------

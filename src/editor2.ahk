@@ -99,7 +99,8 @@ class Editor2 {
         g := Gui("-Resize", Txt.MainTitle)
         g.BackColor := this.COL_BG
         g.MarginX := this.MARGIN, g.MarginY := this.MARGIN
-        g.OnEvent("Close", (*) => ExitApp())    ; спайк: закрыл окно — вышел
+        g.OnEvent("Close", (*) => ExitApp())    ; крестик закрывает приложение из любого состояния
+        g.OnEvent("Escape", (*) => (TypoWin._openFlag && TypoWin.Close()))  ; Esc в настройках -> клавиатура
         this._gui := g
         this.ApplyDarkTitle(g)
 
@@ -206,6 +207,12 @@ class Editor2 {
     static ToggleHints(*) {
         this._hintsOn := !this._hintsOn
         this._gui.Show(Format("w{} h{}", this._winW, this._hintsOn ? this._fullH : this._baseH))
+        this.SyncHints()
+    }
+
+    ; привести контролы подсказки/лого к состоянию _hintsOn
+    ; (используется и при возврате из режима настроек типографа)
+    static SyncHints() {
         for ctrl in this._hints
             ctrl.Visible := this._hintsOn
         if IsObject(this._logo) {
