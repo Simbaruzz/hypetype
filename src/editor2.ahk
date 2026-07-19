@@ -17,7 +17,10 @@ class Editor2 {
 
     ; строки спайка (в общий strings.ahk не лезем до вердикта)
     static STR_CANCEL := "отмена"
+    static STR_SAVE := "сохранить"  ; строчными, как на маке (Txt.EditSave — с заглавной)
     static STR_TYPO_STUB := "Типограф работает так: выделите текст и нажмите Alt + Backspace"
+    static STR_PASTE := "вставьте нужные символы из буфера обмена Ctrl+V"
+    static _shade := ""             ; вуаль-затемнение под попапом
 
     ; --- палитра (тона по скриншотам мака, _preview/) ---
     static COL_BG   := "121212"     ; фон окна
@@ -316,34 +319,65 @@ class Editor2 {
     static OnKeyClick(name, *) {
         this.CloseEdit()
         k := Config.GetKey(name)
-        eg := Gui("+Owner" this._gui.Hwnd " -MinimizeBox -MaximizeBox +ToolWindow",
-            Txt.EditTitlePrefix this.DISPLAY[name] Txt.EditTitleSuffix)
+        letter := this.DISPLAY[name]
+        ; -SysMenu: без крестика и иконки (фидбек: крестик неряшлив, на маке его нет)
+        eg := Gui("+Owner" this._gui.Hwnd " -SysMenu",
+            Txt.EditTitlePrefix letter Txt.EditTitleSuffix)
         this._editGui := eg
         eg.BackColor := this.COL_BG
         this.ApplyDarkTitle(eg)
-        eg.MarginX := 20, eg.MarginY := 16
+        this.ApplyRoundWindow(eg)
 
-        eg.SetFont("s10", this.FONT)
-        eg.AddText("c" this.COL_HINT, Txt.EditAltShift)
+        ; левая колонка: подсказка про буфер + большая приглушённая буква (композиция мака)
+        eg.SetFont("s9", this.FONT)
+        eg.AddText("x24 y20 w160 c" this.COL_HINT, this.STR_PASTE)
+        eg.SetFont((StrLen(letter) > 1 ? "s22" : "s56"), this.FONT)
+        eg.AddText("x24 y104 w160 h84 c4A4A4A", letter)
+
+        ; правая колонка: подписи сочетаний + тёмные поля (вопрос эксперимента №4 — да)
+        eg.SetFont("s9", this.FONT)
+        eg.AddText("x216 y20 w320 c" this.COL_HINT, "Alt + Shift + " letter)
         eg.SetFont("s20", this.FONT)
-        ; тёмный Edit: пробуем Background + светлый текст (вопрос эксперимента №4)
-        shiftEdit := eg.AddEdit(Format("w320 Background{} c{}", this.COL_KEY, this.COL_MAIN), k.altShift)
-
-        eg.SetFont("s10", this.FONT)
-        eg.AddText("c" this.COL_HINT, Txt.EditAlt)
+        shiftEdit := eg.AddEdit(Format("x216 y40 w320 Background{} c{}", this.COL_KEY, this.COL_MAIN), k.altShift)
+        eg.SetFont("s9", this.FONT)
+        eg.AddText("x216 y104 w320 c" this.COL_HINT, "Alt + " letter)
         eg.SetFont("s20", this.FONT)
-        altEdit := eg.AddEdit(Format("w320 Background{} c{}", this.COL_KEY, this.COL_MAIN), k.alt)
+        altEdit := eg.AddEdit(Format("x216 y124 w320 Background{} c{}", this.COL_KEY, this.COL_MAIN), k.alt)
 
+        ; кнопки в стиле мака: тёмная «отмена» слева, синяя «сохранить» справа
         eg.SetFont("s10", this.FONT)
-        cancelBtn := eg.AddButton("w150", this.STR_CANCEL)
-        saveBtn := eg.AddButton("x+20 w150 Default", Txt.EditSave)
-        saveBtn.OnEvent("Click", (*) => this.OnSave(name, altEdit, shiftEdit))
-        cancelBtn.OnEvent("Click", (*) => this.CloseEdit())
+        this.AddFlatButton(eg, 24, 204, 110, 34, this.STR_CANCEL, "2E2E2E", this.COL_MAIN,
+            (*) => this.CloseEdit())
+        this.AddFlatButton(eg, 426, 204, 110, 34, this.STR_SAVE, "0A7CFF", "FFFFFF",
+            (*) => this.OnSave(name, altEdit, shiftEdit))
+        ; Enter = сохранить: нулевая Default-кнопка (невидимый нативный дефолт)
+        defBtn := eg.AddButton("x0 y0 w0 h0 Default", "")
+        defBtn.OnEvent("Click", (*) => this.OnSave(name, altEdit, shiftEdit))
         eg.OnEvent("Close", (*) => this.CloseEdit())
         eg.OnEvent("Escape", (*) => this.CloseEdit())
 
+        this.ShowShade()                        ; лёгкое затемнение клавиатуры (как на маке)
         this._gui.Opt("+Disabled")              ; модальность: владелец выключен
-        eg.Show()
+        eg.Show("w560 h258")
+    }
+
+    ; плоская кнопка из Text-контролов (нативные не красятся): тело + подпись
+    static AddFlatButton(g, x, y, w, h, text, bg, fg, clickFn) {
+        body := g.AddText(Format("x{} y{} w{} h{} Background{}", x, y, w, h, bg))
+        this.RoundCtrl(body, w, h)
+        label := g.AddText(Format("x{} y{} w{} Center Background{} c{}", x, y + (h - 18) // 2, w, bg, fg), text)
+        body.OnEvent("Click", clickFn)
+        label.OnEvent("Click", clickFn)
+    }
+
+    ; полупрозрачная чёрная вуаль поверх окна редактора на время попапа
+    static ShowShade() {
+        WinGetPos(&wx, &wy, &ww, &wh, "ahk_id " this._gui.Hwnd)   ; физические координаты
+        sh := Gui("-Caption -DPIScale +Owner" this._gui.Hwnd " +E0x08000000")  ; WS_EX_NOACTIVATE
+        sh.BackColor := "000000"
+        sh.Show(Format("NA x{} y{} w{} h{}", wx, wy, ww, wh))
+        WinSetTransparent(100, sh)
+        this._shade := sh
     }
 
     static CloseEdit() {
@@ -352,6 +386,10 @@ class Editor2 {
         this._gui.Opt("-Disabled")              ; вернуть владельца ДО Destroy (иначе фокус уйдёт)
         try this._editGui.Destroy()
         this._editGui := ""
+        if IsObject(this._shade) {
+            try this._shade.Destroy()
+            this._shade := ""
+        }
     }
 
     static OnSave(name, altEdit, shiftEdit) {
@@ -376,6 +414,11 @@ class Editor2 {
             n++
         }
         return n
+    }
+
+    ; скруглить само окно (Win11): DWMWA_WINDOW_CORNER_PREFERENCE=33 -> DWMWCP_ROUND=2
+    static ApplyRoundWindow(g) {
+        DllCall("dwmapi\DwmSetWindowAttribute", "ptr", g.Hwnd, "int", 33, "int*", 2, "int", 4, "int")
     }
 
     ; тёмный заголовок: DWMWA_USE_IMMERSIVE_DARK_MODE = 20, фолбэк 19 (UI-SPIKE §3.3)
