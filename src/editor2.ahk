@@ -21,14 +21,27 @@ class Editor2 {
 
     ; --- палитра (тона по скриншотам мака, _preview/) ---
     static COL_BG   := "121212"     ; фон окна
-    static COL_KEY  := "1E1E1E"     ; тело клавиши
-    static COL_KEY_HOVER := "2E2E2E" ; тело клавиши под мышью
+    static COL_KEY  := "262626"     ; кликабельная клавиша (чуть светлее декора — как на маке)
+    static COL_DECOR := "1A1A1A"    ; декор-клавиша (некликабельная, темнее)
+    static COL_KEY_HOVER := "343434" ; тело клавиши под мышью
     static COL_HYPE := "F2F2F2"     ; подсвеченная хайп-клавиша (правый Alt)
     static COL_MAIN := "FFFFFF"     ; основной символ (с Alt)
     static COL_SHIFT := "B873FF"    ; Shift-символ (фиолетовый акцент; серый вариант — на скрине gray-shift)
     static COL_BASE := "757575"     ; буква клавиши и декор-глифы
     static COL_HINT := "8C8C8C"     ; текст подсказки внизу
     static FONT := "Segoe UI"       ; системный; глифы добирает фонт-линкинг GDI
+
+    ; невидимые пробельные символы -> прямоугольник примерно их ширины
+    ; (механика мака: узкий/волосяной пробел видно прямо на клавише);
+    ; обычный пробел (␣) и nbsp (⍽) остаются глифами из Config.RenderCp
+    static SPACE_BLOCK := Map(
+        0x200A, Chr(0x258F),                                          ; hair space
+        0x2006, Chr(0x258E),                                          ; six-per-em
+        0x2009, Chr(0x258D), 0x202F, Chr(0x258D), 0x205F, Chr(0x258D), ; thin, narrow nbsp, medium math
+        0x2005, Chr(0x258C), 0x2008, Chr(0x258C),                     ; four-per-em, punctuation
+        0x2004, Chr(0x258B),                                          ; three-per-em
+        0x2000, Chr(0x258A), 0x2002, Chr(0x258A), 0x2007, Chr(0x258A), ; en quad/space, figure
+        0x2001, Chr(0x2588), 0x2003, Chr(0x2588), 0x3000, Chr(0x2588)) ; em quad/space, ideographic
 
     ; --- сетка: логические px при 100% DPI; встроенный DPIScale v2 множит сам ---
     static U := 56                  ; ширина клавиши 1u
@@ -100,22 +113,22 @@ class Editor2 {
         ; --- ряд 4: Shift + Z…/ + Shift ---
         x := this.MARGIN, y += KH + GAP
         wshift := (contentW - 10 * U - 11 * GAP) // 2
-        x := this.AddDecor(g, x, y, wshift, "SHIFT", "L", this.COL_SHIFT)
+        x := this.AddDecor(g, x, y, wshift, "SHIFT", "BL", this.COL_SHIFT)
         for name in this.ROW4
             x := this.AddKeycap(g, x, y, U, name)
-        this.AddDecor(g, x, y, contentW + this.MARGIN - x, "SHIFT", "R", this.COL_SHIFT)
+        this.AddDecor(g, x, y, contentW + this.MARGIN - x, "SHIFT", "BR", this.COL_SHIFT)
 
         ; --- ряд 5: ⓘ ctrl win alt SPACE alt(хайп) win ctrl стрелки ---
         x := this.MARGIN, y += KH + GAP
         arrowsW := 3 * U + 2 * GAP
         spaceW := contentW - 7 * U - arrowsW - 10 * GAP
-        x := this.AddDecor(g, x, y, U, Chr(0x24D8), "C", "", ObjBindMethod(this, "ToggleHints"))  ; ⓘ
+        x := this.AddDecor(g, x, y, U, Chr(0x24D8), "C", "", ObjBindMethod(this, "ToggleHints"), this.COL_KEY)  ; ⓘ кликабельна -> светлее
         for label in ["ctrl", "win", "alt"]
-            x := this.AddDecor(g, x, y, U, label, "C")
+            x := this.AddDecor(g, x, y, U, label, "B")
         x := this.AddKeycap(g, x, y, spaceW, "Space")
         x := this.AddHypeKey(g, x, y, U)
         for label in ["win", "ctrl"]
-            x := this.AddDecor(g, x, y, U, label, "C")
+            x := this.AddDecor(g, x, y, U, label, "B")
         this.AddArrows(g, x, y)
 
         ; --- подсказка под клавиатурой (появляется по ⓘ, место зарезервировано) ---
@@ -210,7 +223,7 @@ class Editor2 {
         while (i <= len && shown < 3) {
             cp := Ord(SubStr(value, i, 2))
             i += (cp > 0xFFFF) ? 2 : 1
-            out .= Config.RenderCp(cp)
+            out .= this.SPACE_BLOCK.Has(cp) ? this.SPACE_BLOCK[cp] : Config.RenderCp(cp)
             shown++
         }
         if (i <= len)
@@ -218,20 +231,20 @@ class Editor2 {
         return out
     }
 
-    ; декор-клавиша: тело + один приглушённый глиф; align: BL/BR/L/R/C;
-    ; clickFn — для «почти декора» вроде ⓘ
-    static AddDecor(g, x, y, w, glyph, align := "C", color := "", clickFn := "") {
+    ; декор-клавиша: тело + один приглушённый глиф; align: BL/BR/B (низ) / C (центр);
+    ; clickFn и bg — для «почти декора» вроде ⓘ (кликабельный -> светлее)
+    static AddDecor(g, x, y, w, glyph, align := "C", color := "", clickFn := "", bg := "") {
         color := (color = "") ? this.COL_BASE : color
-        body := this.AddBody(g, x, y, w)
+        bg := (bg = "") ? this.COL_DECOR : bg
+        body := this.AddBody(g, x, y, w, -1, bg)
         g.SetFont("s9", this.FONT)
         switch align {
             case "BL": opt := Format("x{} y{} w{}", x + 8, y + this.KH - 20, w - 16)
             case "BR": opt := Format("x{} y{} w{} Right", x + 8, y + this.KH - 20, w - 16)
-            case "L":  opt := Format("x{} y{} w{}", x + 10, y + this.KH // 2 - 7, w - 20)
-            case "R":  opt := Format("x{} y{} w{} Right", x + 10, y + this.KH // 2 - 7, w - 20)
+            case "B":  opt := Format("x{} y{} w{} Center", x + 2, y + this.KH - 20, w - 4)
             default:   opt := Format("x{} y{} w{} Center", x + 2, y + this.KH // 2 - 7, w - 4)
         }
-        label := g.AddText(opt " Background1E1E1E c" color, glyph)
+        label := g.AddText(opt " Background" bg " c" color, glyph)
         if (clickFn != "") {
             body.OnEvent("Click", clickFn)
             label.OnEvent("Click", clickFn)
@@ -239,14 +252,15 @@ class Editor2 {
         return x + w + this.GAP
     }
 
-    ; широкая клавиша ТИПОГРАФ на месте Backspace; клик — заглушка-подсказка
+    ; широкая клавиша ТИПОГРАФ на месте Backspace; кликабельна (светлая);
+    ; подпись и ⌫ по правому краю — как SHIFT/Enter (фидбек владельца)
     static AddTypoKey(g, x, y, w) {
         body := this.AddBody(g, x, y, w)
         g.SetFont("s8", this.FONT)
-        cap := g.AddText(Format("x{} y{} w{} Center Background1E1E1E c{}", x + 2, y + 8, w - 4, this.COL_MAIN),
+        cap := g.AddText(Format("x{} y{} w{} Right Background{} c{}", x + 8, y + 8, w - 16, this.COL_KEY, this.COL_MAIN),
             "ТИПОГРАФ")
         g.SetFont("s10", this.FONT)
-        glyph := g.AddText(Format("x{} y{} w{} Center Background1E1E1E c{}", x + 2, y + this.KH - 24, w - 4, this.COL_BASE),
+        glyph := g.AddText(Format("x{} y{} w{} Right Background{} c{}", x + 8, y + this.KH - 24, w - 16, this.COL_KEY, this.COL_BASE),
             Chr(0x232B))                                          ; ⌫
         cb := ObjBindMethod(this, "ShowTypoStub")
         for ctrl in [body, cap, glyph]
@@ -275,8 +289,8 @@ class Editor2 {
         g.SetFont("s7", this.FONT)
         for pair in [[x, yb, Chr(0x25C4)], [x + this.U + this.GAP, y, Chr(0x25B2)],
                      [x + this.U + this.GAP, yb, Chr(0x25BC)], [x + 2 * (this.U + this.GAP), yb, Chr(0x25BA)]] {
-            this.AddBody(g, pair[1], pair[2], this.U, hh)
-            g.AddText(Format("x{} y{} w{} Center Background1E1E1E c{}", pair[1] + 2, pair[2] + hh // 2 - 6, this.U - 4, this.COL_BASE),
+            this.AddBody(g, pair[1], pair[2], this.U, hh, this.COL_DECOR)
+            g.AddText(Format("x{} y{} w{} Center Background{} c{}", pair[1] + 2, pair[2] + hh // 2 - 6, this.U - 4, this.COL_DECOR, this.COL_BASE),
                 pair[3])
         }
         return x + 3 * this.U + 2 * this.GAP + this.GAP
