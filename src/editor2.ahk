@@ -363,14 +363,11 @@ class Editor2 {
         this.ApplyDarkTitle(eg)
         this.ApplyRoundWindow(eg)
 
-        ; левая колонка: подсказка про буфер + большая приглушённая буква (композиция мака)
+        ; левая колонка: подсказка про буфер (композиция мака)
         eg.SetFont("s9", this.FONT)
         eg.AddText("x24 y20 w160 c" this.COL_HINT, this.STR_PASTE)
-        eg.SetFont((StrLen(letter) > 1 ? "s22" : "s56"), this.FONT)
-        eg.AddText("x24 y104 w160 h84 c4A4A4A", letter)
 
         ; правая колонка: подписи сочетаний + тёмные поля (вопрос эксперимента №4 — да)
-        eg.SetFont("s9", this.FONT)
         eg.AddText("x216 y20 w320 c" this.COL_HINT, "Alt + Shift + " letter)
         eg.SetFont("s20", this.FONT)
         shiftEdit := eg.AddEdit(Format("x216 y40 w320 Background{} c{}", this.COL_KEY, this.COL_MAIN), k.altShift)
@@ -378,6 +375,13 @@ class Editor2 {
         eg.AddText("x216 y104 w320 c" this.COL_HINT, "Alt + " letter)
         eg.SetFont("s20", this.FONT)
         altEdit := eg.AddEdit(Format("x216 y124 w320 Background{} c{}", this.COL_KEY, this.COL_MAIN), k.alt)
+
+        ; большая приглушённая буква: низ — по нижнему краю нижнего поля
+        eg.SetFont((StrLen(letter) > 1 ? "s22" : "s56"), this.FONT)
+        letterCtrl := eg.AddText("x24 y104 w160 c4A4A4A", letter)
+        altEdit.GetPos(, &fy, , &fh)
+        letterCtrl.GetPos(, , , &lh)
+        letterCtrl.Move(, fy + fh - lh)
 
         ; кнопки в стиле мака: тёмная «отмена» слева, синяя «сохранить» справа
         eg.SetFont("s10", this.FONT)
@@ -405,10 +409,13 @@ class Editor2 {
         label.OnEvent("Click", clickFn)
     }
 
-    ; полупрозрачная чёрная вуаль поверх окна редактора на время попапа
+    ; полупрозрачная чёрная вуаль поверх окна редактора на время попапа.
+    ; E0x20 (WS_EX_TRANSPARENT) — клики проходят сквозь вуаль к disabled-окну
+    ; (стандартный «дынь» + мигание попапа), иначе клик поднимал вуаль над
+    ; попапом и всё выглядело зависшим.
     static ShowShade() {
         WinGetPos(&wx, &wy, &ww, &wh, "ahk_id " this._gui.Hwnd)   ; физические координаты
-        sh := Gui("-Caption -DPIScale +Owner" this._gui.Hwnd " +E0x08000000")  ; WS_EX_NOACTIVATE
+        sh := Gui("-Caption -DPIScale +Owner" this._gui.Hwnd " +E0x08000020")  ; NOACTIVATE | TRANSPARENT
         sh.BackColor := "000000"
         sh.Show(Format("NA x{} y{} w{} h{}", wx, wy, ww, wh))
         WinSetTransparent(100, sh)
