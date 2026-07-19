@@ -9,6 +9,7 @@
 
 class Editor2 {
     static _gui := ""
+    static _caps := Map()           ; w3cName -> {alt: Text, shift: Text} для обновления подписей
 
     ; --- палитра (тона по скриншотам мака, _preview/) ---
     static COL_BG   := "121212"     ; фон окна
@@ -123,13 +124,41 @@ class Editor2 {
         return g.AddText(Format("x{} y{} w{} h{} Background{}", x, y, w, h, bg))
     }
 
-    ; mappable-кейкап: тело + 3 слоя подписей (буква / Alt / Alt+Shift)
+    ; mappable-кейкап: тело + 3 слоя подписей — Alt+Shift (верх, акцент),
+    ; буква (низ-лево, приглушена), Alt-символ (низ-право, белый)
     static AddKeycap(g, x, y, w, name) {
         this.AddBody(g, x, y, w)
+        k := Config.GetKey(name)
+        g.SetFont("s8", this.FONT)
+        shiftCtrl := g.AddText(Format("x{} y{} w{} h14 Right Background{} c{}",
+            x + 6, y + 5, w - 12, this.COL_KEY, this.COL_SHIFT), this.KeyRepr(k.altShift))
+        baseW := (name = "Space") ? 60 : 18
         g.SetFont("s9", this.FONT)
-        g.AddText(Format("x{} y{} w{} Background1E1E1E c{}", x + 6, y + this.KH - 20, w - 12, this.COL_BASE),
-            this.DISPLAY[name])
+        g.AddText(Format("x{} y{} w{} h16 Background{} c{}",
+            x + 6, y + this.KH - 21, baseW, this.COL_KEY, this.COL_BASE), this.DISPLAY[name])
+        g.SetFont("s12", this.FONT)
+        altCtrl := g.AddText(Format("x{} y{} w{} h20 Right Background{} c{}",
+            x + 6 + baseW, y + this.KH - 26, w - baseW - 12, this.COL_KEY, this.COL_MAIN), this.KeyRepr(k.alt))
+        this._caps[name] := {alt: altCtrl, shift: shiftCtrl}
         return x + w + this.GAP
+    }
+
+    ; отображение значения на кейкапе (UI-SPIKE §3.4): до 3 кодпоинтов + «…»,
+    ; подстановки невидимых символов — Config.RenderCp (переиспользуем, не дублируем)
+    static KeyRepr(value) {
+        if (value = "")
+            return ""
+        out := "", shown := 0
+        i := 1, len := StrLen(value)
+        while (i <= len && shown < 3) {
+            cp := Ord(SubStr(value, i, 2))
+            i += (cp > 0xFFFF) ? 2 : 1
+            out .= Config.RenderCp(cp)
+            shown++
+        }
+        if (i <= len)
+            out .= "…"
+        return out
     }
 
     ; декор-клавиша: тело + один приглушённый глиф; align: BL/BR/L/R/C
