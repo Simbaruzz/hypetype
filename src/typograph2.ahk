@@ -314,7 +314,7 @@ class TypoWin {
             ty += ph + 16
         }
         g.SetFont("s10", E.FONT)
-        pre := g.AddText(Format("x{} y{} Hidden Background{} cB3B3B3", tx, ty - 16 - 4, this.COL_CARD), "Основано на")
+        pre := g.AddText(Format("x{} y{} Hidden Background{} cB3B3B3", tx, ty - 12, this.COL_CARD), "Основано на")
         this._aboutCtrls.Push(pre)
         pre.GetPos(&px, &py, &pw)
         g.SetFont("s10 underline", E.FONT)
