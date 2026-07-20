@@ -188,8 +188,16 @@ class Editor2 {
 
         ; лого справа от подсказки: logo.png, при ховере lion.png, клик -> сайт.
         ; PNG кладутся в assets\ (SVG натив не умеет); нет файлов — нет лого.
-        logoPath := A_ScriptDir "\..\assets\logo.png"
-        lionPath := A_ScriptDir "\..\assets\lion.png"
+        ; в exe рядом нет assets\ — картинки вшиты FileInstall и достаются во временную папку
+        if A_IsCompiled {
+            logoPath := A_Temp "\hypetype_logo.png"
+            lionPath := A_Temp "\hypetype_lion.png"
+            FileInstall "..\assets\logo.png", logoPath, 1
+            FileInstall "..\assets\lion.png", lionPath, 1
+        } else {
+            logoPath := A_ScriptDir "\..\assets\logo.png"
+            lionPath := A_ScriptDir "\..\assets\lion.png"
+        }
         if FileExist(logoPath) {
             lw := 48
             lx := this.MARGIN + contentW - lw

@@ -14,7 +14,8 @@
 
 ; при запуске интерпретатором иконка была бы AutoHotkey; в собранном exe
 ; её вшивает Ahk2Exe (/icon assets\icon.ico, см. build.yml) — тут ставим сами
-TraySetIcon(A_ScriptDir "\..\assets\icon.ico")
+if !A_IsCompiled
+    TraySetIcon(A_ScriptDir "\..\assets\icon.ico")
 
 Config.Load()
 Editor2.StandAlone := true      ; в спайке нет трея: закрытие окна = выход
