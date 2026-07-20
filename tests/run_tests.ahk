@@ -3,7 +3,8 @@
 #Include ..\src\config.ahk
 #Include ..\src\registry.ahk
 #Include ..\src\input.ahk
-#Include ..\src\editor.ahk
+#Include ..\src\editor2.ahk
+#Include ..\src\typograph2.ahk
 #Include ..\src\typograph.ahk
 #Include ..\src\yodict.ahk
 
@@ -300,22 +301,24 @@ AssertEq(KeyInput.NormalizeNFC("abc"), "abc", "NFC: ASCII без изменен�
 ; ---------------------------------------------------------------------------
 ;  9. editor.ahk: чистые помощники (PLAN.md §5)
 ; ---------------------------------------------------------------------------
-AssertEq(Editor.CpCount("abc"), 3, "editor: CpCount ASCII")
-AssertEq(Editor.CpCount(Chr(0x1F60E)), 1, "editor: CpCount эмодзи = 1 кодпоинт (не 2 code units)")
-AssertEq(Editor.CpCount(Chr(0x1F60E) Chr(0x1F60E) "a"), 3, "editor: CpCount два эмодзи + ASCII")
-AssertEq(Editor.CpCount(""), 0, "editor: CpCount пусто = 0")
+AssertEq(Editor2.CpCount("abc"), 3, "editor2: CpCount ASCII")
+AssertEq(Editor2.CpCount(Chr(0x1F60E)), 1, "editor2: CpCount эмодзи = 1 кодпоинт (не 2 code units)")
+AssertEq(Editor2.CpCount(Chr(0x1F60E) Chr(0x1F60E) "a"), 3, "editor2: CpCount два эмодзи + ASCII")
+AssertEq(Editor2.CpCount(""), 0, "editor2: CpCount пусто = 0")
 
 cp33 := ""
 Loop 33
     cp33 .= Chr(0x1F60E)
-Assert(Editor.CpCount(cp33) > 32, "editor: 33 эмодзи считаются как >32 кодпоинтов")
+Assert(Editor2.CpCount(cp33) > 32, "editor2: 33 эмодзи считаются как >32 кодпоинтов")
 
-AssertEq(Editor.Sanitize("a`r`nb"), "ab", "editor: Sanitize убирает CR/LF")
-AssertEq(Editor.Sanitize("a,b|c=d;e"), "a,b|c=d;e", "editor: Sanitize не трогает ,|=;")
+AssertEq(Editor2.Sanitize("a`r`nb"), "ab", "editor2: Sanitize убирает CR/LF")
+AssertEq(Editor2.Sanitize("a,b|c=d;e"), "a,b|c=d;e", "editor2: Sanitize не трогает ,|=;")
 
-AssertEq(Editor.ButtonRepr(""), "", "editor: ButtonRepr пусто -> ''")
-AssertEq(Editor.ButtonRepr(Chr(0x0301)), Chr(0x25CC) Chr(0x0301), "editor: ButtonRepr диакритика на ◌")
-Assert(InStr(Editor.ButtonRepr("12345"), "…"), "editor: ButtonRepr длинной строки усечён с …")
+AssertEq(Editor2.KeyRepr(""), "", "editor2: KeyRepr пусто -> ''")
+AssertEq(Editor2.KeyRepr(Chr(0x0301)), Chr(0x25CC) Chr(0x0301), "editor2: KeyRepr диакритика на ◌")
+Assert(InStr(Editor2.KeyRepr("12345"), "…"), "editor2: KeyRepr длинной строки усечён с …")
+AssertEq(Editor2.KeyRepr(Chr(0x2009)), Chr(0x258D), "editor2: thin space -> блок-прямоугольник")
+AssertEq(Editor2.KeyRepr(Chr(0x200A)), Chr(0x258F), "editor2: hair space -> узкий блок")
 
 ; ---------------------------------------------------------------------------
 ;  10. typograph.ahk: группы G3/G4/G7 (TYPOGRAPH.md §5, §9). Каждый кейс —
@@ -402,7 +405,7 @@ TypoCase("ООО Ромашка", "ООО" NB "Ромашка", "G5 орг-фо�
 TypoCase("работа и т.д.", "работа" NB "и" NB "т." NB "д.", "G5 и т.д.")
 TypoCase("это был я.", "это был" NB "я.", "G5 последнее короткое слово")
 TypoNeg("красивая ваза", "G5 негатив: нет коротких слов")
-TypoCase("5 лет", "5 лет", "тумблер: Nbsp off", SettingsWith(Map("Nbsp", false)))
+TypoCase("5 лет", "5 лет", "тумблер: NbspNumberWord+ShortWords off", SettingsWith(Map("NbspNumberWord", false, "NbspShortWords", false)))
 
 ; G6 — числа и валюта
 TypoCase("$ 109", "109" NB "$", "G6 знак до числа -> после с НБ")
@@ -418,14 +421,35 @@ TypoCase("109$", "$" NB "109", "G6 позиция before", SettingsWith(Map("Cur
 TypoNeg("2.5.1", "G6 негатив: версия не валюта")
 TypoNeg("2026", "G6 негатив: год без валюты не группируется")
 
-; Тумблеры
-TypoCase("2002-2009", "2002-2009", "тумблер: Dashes off", SettingsWith(Map("Dashes", false)))
-TypoCase("109$", "109$", "тумблер: Numbers off", SettingsWith(Map("Numbers", false)))
-TypoCase("Текст...", "Текст...", "тумблер: Punct off", SettingsWith(Map("Punct", false)))
+; Тумблеры — раздельные ключи (UI.md §3, общий формат с macOS)
+TypoCase("2002-2009", "2002-2009", "тумблер: DashRanges off", SettingsWith(Map("DashRanges", false)))
+TypoNeg("дизайн - огонь", "тумблер: DashText off", SettingsWith(Map("DashText", false)))
+TypoNeg("- Это я", "тумблер: DashSpeech off", SettingsWith(Map("DashSpeech", false, "NbspShortWords", false)))
+TypoCase("109$", "109$", "тумблер: CurrencySymbol off", SettingsWith(Map("CurrencySymbol", false)))
+TypoCase("2345123 $", "2345123" NB "$", "тумблер: CurrencyGrouping off", SettingsWith(Map("CurrencyGrouping", false)))
+TypoCase("Текст...", "Текст...", "тумблер: PunctEllipsis off", SettingsWith(Map("PunctEllipsis", false)))
+TypoCase("Что???", "Что???", "тумблер: PunctCollapse off", SettingsWith(Map("PunctCollapse", false)))
+TypoCase("Правда!?", "Правда!?", "тумблер: PunctOrder off", SettingsWith(Map("PunctOrder", false)))
+TypoNeg("А.А. Иванов", "тумблер: NbspInitials off", SettingsWith(Map("NbspInitials", false)))
+TypoNeg("сделал бы", "тумблер: NbspParticles off", SettingsWith(Map("NbspParticles", false, "NbspShortWords", false)))
 TypoCase("«сказал " Chr(0x22) "да" Chr(0x22) "»", "«сказал " Chr(0x22) "да" Chr(0x22) "»", "тумблер: Quotes off", SettingsWith(Map("Quotes", false)))
 TypoCase("(c)", "(c)", "тумблер: Symbols off", SettingsWith(Map("Symbols", false)))
 TypoCase("менее,меньше", "менее,меньше", "тумблер: SpaceClean off", SettingsWith(Map("SpaceClean", false)))
 TypoCase("23 %", "23" Chr(0x202F) "%", "тумблер: PercentSpace=narrow", SettingsWith(Map("PercentSpace", "narrow")))
+TypoCase("23%", "23 %", "тумблер: PercentSpace=regular", SettingsWith(Map("PercentSpace", "regular")))
+
+; Миграция групповых ключей [Typograph] -> раздельные (config.ahk)
+mig := Map("Dashes", "0", "Quotes", "1", "PercentSpace", "narrow")
+Assert(Config.MigrateTypographKeys(mig), "миграция: изменения замечены")
+AssertEq(mig["DashText"], "0", "миграция: Dashes -> DashText")
+AssertEq(mig["DashRanges"], "0", "миграция: Dashes -> DashRanges")
+Assert(!mig.Has("Dashes"), "миграция: старый ключ удалён")
+AssertEq(mig["Quotes"], "1", "миграция: Quotes не тронут")
+mig2 := Map("Nbsp", "0", "NbspInitials", "1")
+Config.MigrateTypographKeys(mig2)
+AssertEq(mig2["NbspInitials"], "1", "миграция: заданный раздельный ключ не перезатирается")
+AssertEq(mig2["NbspParticles"], "0", "миграция: остальные наследуют группу")
+Assert(!Config.MigrateTypographKeys(Map("Quotes", "1")), "миграция: без старых ключей — no-op")
 
 ; Негативы (текст не должен меняться)
 TypoNeg("143,56", "негатив: десятичная дробь")

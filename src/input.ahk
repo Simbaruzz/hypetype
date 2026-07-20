@@ -141,9 +141,13 @@ class KeyInput {
     }
 
     ; Настройки [Typograph] из конфига (читаются на каждом нажатии — как раскладка).
+    ; Раздельные ключи, общий формат с macOS (UI.md §3).
     static TypographSettings() {
         s := Typograph.DefaultSettings()
-        for k in ["Quotes", "Dashes", "Punct", "SpaceClean", "Nbsp", "Numbers", "Symbols"]
+        for k in ["Quotes", "DashText", "DashSpeech", "DashRanges",
+                  "PunctEllipsis", "PunctCollapse", "PunctOrder", "SpaceClean",
+                  "NbspNumberWord", "NbspInitials", "NbspParticles", "NbspShortWords",
+                  "CurrencySymbol", "CurrencyGrouping", "CurrencyKopecks", "Symbols"]
             s[k] := (Config.GetTypographSetting(k, "1") != "0")
         s["Yo"] := (Config.GetTypographSetting("Yo", "0") = "1")   ; ёфикатор: по умолчанию выкл
         s["PercentSpace"] := Config.GetTypographSetting("PercentSpace", "none")

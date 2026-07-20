@@ -17,4 +17,5 @@
 TraySetIcon(A_ScriptDir "\..\assets\icon.ico")
 
 Config.Load()
+Editor2.StandAlone := true      ; в спайке нет трея: закрытие окна = выход
 Editor2.Show()

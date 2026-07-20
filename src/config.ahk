@@ -301,6 +301,8 @@ class Config {
                 this.Save()
             } else {
                 this._data := this.ParseText(text)
+                if this.MigrateTypographKeys(this._data["typograph"])
+                    this.Save()                    ; групповые ключи развёрнуты в раздельные
             }
         } else {
             this._data := this.DefaultData()
@@ -365,8 +367,10 @@ class Config {
     static RefreshTypograph() {
         if !FileExist(this.Path)
             return
-        try
+        try {
             this._data["typograph"] := this.ParseText(FileRead(this.Path, "UTF-8"))["typograph"]
+            this.MigrateTypographKeys(this._data["typograph"])   ; руками вписали старый ключ — развернём
+        }
     }
 
     ; Записать пачку настроек [Typograph] и сохранить (окно настроек типографа).
@@ -401,13 +405,39 @@ class Config {
         }
         d["windows"]["DiacriticTimeoutMs"] := "3000"
         ; секция [Typograph] пишется сразу при первом запуске — чтобы ёфикатор (Yo)
-        ; и группы было видно и легко включить (TYPOGRAPH.md §7)
-        for k in ["Quotes", "Dashes", "Punct", "SpaceClean", "Nbsp", "Numbers", "Symbols"]
+        ; и правила было видно и легко переключать. Ключи раздельные, общие с macOS
+        ; (UI.md §3, TypographFormat.swift).
+        for k in ["Quotes", "DashText", "DashSpeech", "DashRanges",
+                  "PunctEllipsis", "PunctCollapse", "PunctOrder", "SpaceClean",
+                  "NbspNumberWord", "NbspInitials", "NbspParticles", "NbspShortWords",
+                  "CurrencySymbol", "CurrencyGrouping", "CurrencyKopecks", "Symbols"]
             d["typograph"][k] := "1"
         d["typograph"]["Yo"] := "0"
         d["typograph"]["PercentSpace"] := "none"
         d["typograph"]["CurrencyPosition"] := "after"
         return d
+    }
+
+    ; Миграция [Typograph]: старые групповые ключи -> раздельные (UI.md §3).
+    ; Значение группы наследуют все её под-ключи; старый ключ удаляется.
+    ; Выполняется при каждой загрузке (идемпотентно: без старых ключей — no-op).
+    static MigrateTypographKeys(t) {
+        groups := Map(
+            "Dashes",  ["DashText", "DashSpeech", "DashRanges"],
+            "Punct",   ["PunctEllipsis", "PunctCollapse", "PunctOrder"],
+            "Nbsp",    ["NbspNumberWord", "NbspInitials", "NbspParticles", "NbspShortWords"],
+            "Numbers", ["CurrencySymbol", "CurrencyGrouping", "CurrencyKopecks"])
+        changed := false
+        for old, subs in groups {
+            if !t.Has(old)
+                continue
+            for sub in subs
+                if !t.Has(sub)                       ; раздельный ключ уже задан — не трогаем
+                    t[sub] := t[old]
+            t.Delete(old)
+            changed := true
+        }
+        return changed
     }
 
     static DeterminePath() {

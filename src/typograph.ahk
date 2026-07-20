@@ -33,59 +33,67 @@ class Typograph {
     static YO := Map()           ; е-форма (lower) -> ё-форма (lower)
     static _yoBuilt := false
 
-    ; Настройки по умолчанию (§7): все группы включены.
+    ; Настройки по умолчанию (§7): раздельные под-правила, общий формат с macOS
+    ; (TypographFormat.swift). Все правила включены, ёфикатор — осознанный опт-ин.
     static DefaultSettings() {
         return Map(
-            "Quotes", true, "Dashes", true, "Punct", true, "SpaceClean", true,
-            "Nbsp", true, "Numbers", true, "Symbols", true,
+            "Quotes", true,
+            "DashText", true, "DashSpeech", true, "DashRanges", true,
+            "PunctEllipsis", true, "PunctCollapse", true, "PunctOrder", true,
+            "SpaceClean", true,
+            "NbspNumberWord", true, "NbspInitials", true,
+            "NbspParticles", true, "NbspShortWords", true,
+            "CurrencySymbol", true, "CurrencyGrouping", true, "CurrencyKopecks", true,
+            "Symbols", true,
             "Yo", false,                   ; ёфикатор — по умолчанию ВЫКЛ (осознанный опт-ин)
-            "PercentSpace", "none",        ; none | narrow
+            "PercentSpace", "none",        ; none | narrow | regular
             "CurrencyPosition", "after"    ; after | before
         )
     }
 
     ; -------------------------------------------------------------------------
-    ;  Конвейер (§6). Порядок критичен.
+    ;  Конвейер (§6). Порядок критичен. Гейты под-правил — внутри групп
+    ;  (как в Typograph.swift); обрезка/схлопывание пробелов — всегда.
     ; -------------------------------------------------------------------------
     static Run(text, settings := "") {
         if !IsObject(settings)
             settings := this.DefaultSettings()
         text := RegExReplace(text, "\r\n?", "`n")        ; нормализуем переводы строк -> \n
 
-        if settings["SpaceClean"]
-            text := this.TrimLines(text)                 ; G4: обрезка краёв строк
+        text := this.TrimLines(text)                     ; G4: обрезка краёв строк
         if settings["Yo"]
             text := this.Yoficate(text)                  ; G8: ёфикатор (по словарю)
         if settings["Quotes"]
-            text := this.Quotes(text)                    ; G1: автомат кавычек (стаб)
-        if settings["Punct"]
-            text := this.Punct(text)                     ; G3: многоточие/пунктуация
-        if settings["Dashes"]
-            text := this.Dashes(text)                    ; G2: тире (стаб)
+            text := this.Quotes(text)                    ; G1: автомат кавычек
+        text := this.Punct(text, settings)               ; G3: многоточие/пунктуация
+        text := this.Dashes(text, settings)              ; G2: тире
         if settings["SpaceClean"]
-            text := this.SpaceClean(text, settings)      ; G4: чистка пробелов (вкл. запятые)
-        if settings["Numbers"]
-            text := this.Numbers(text, settings)         ; G6: числа/валюта (стаб)
+            text := this.SpaceClean(text)                ; G4: чистка пробелов (вкл. запятые)
+        text := this.PercentSpacing(text, settings)      ; G4: стиль пробела у % (независим)
+        text := this.Numbers(text, settings)             ; G6: числа/валюта
         if settings["Symbols"]
             text := this.Symbols(text)                   ; G7: символы
-        if settings["Nbsp"]
-            text := this.Nbsp(text)                      ; G5: неразрывные (стаб)
-        if settings["SpaceClean"]
-            text := this.CollapseSpaces(text)            ; G4: финальная чистка двойных пробелов
+        text := this.Nbsp(text, settings)                ; G5: неразрывные (последними)
+        text := this.CollapseSpaces(text)                ; G4: финальная чистка двойных пробелов
         return text
     }
 
     ; =========================================================================
-    ;  G3. Punct — многоточие и пунктуация (§5)
+    ;  G3. Punct — многоточие и пунктуация (§5). Гейты: PunctEllipsis /
+    ;  PunctCollapse / PunctOrder (как punctuation() в Typograph.swift).
     ; =========================================================================
-    static Punct(text) {
-        led := Chr(0x2025)                               ; ‥ двухточие (SBOL-стиль)
-        ; смешанные троеточие+знак -> «знак‥» (ДО схлопывания троеточия)
-        text := RegExReplace(text, "\.{3,}([?!])", "$1" led)     ; ...? -> ?‥ ; ...! -> !‥
-        text := RegExReplace(text, "([?!])\.{3,}", "$1" led)     ; ?... -> ?‥ ; !... -> !‥
-        text := RegExReplace(text, "\.{3,}", Chr(0x2026))        ; ... -> …
-        text := RegExReplace(text, "([?!,;:])\1+", "$1")         ; ??? -> ? ; !!! -> !
-        text := RegExReplace(text, "!\?", "?!")                  ; !? -> ?!
+    static Punct(text, settings) {
+        if settings["PunctEllipsis"] {
+            led := Chr(0x2025)                           ; ‥ двухточие (SBOL-стиль)
+            ; смешанные троеточие+знак -> «знак‥» (ДО схлопывания троеточия)
+            text := RegExReplace(text, "\.{3,}([?!])", "$1" led)   ; ...? -> ?‥ ; ...! -> !‥
+            text := RegExReplace(text, "([?!])\.{3,}", "$1" led)   ; ?... -> ?‥ ; !... -> !‥
+            text := RegExReplace(text, "\.{3,}", Chr(0x2026))      ; ... -> …
+        }
+        if settings["PunctCollapse"]
+            text := RegExReplace(text, "([?!,;:])\1+", "$1")       ; ??? -> ? ; !!! -> !
+        if settings["PunctOrder"]
+            text := RegExReplace(text, "!\?", "?!")                ; !? -> ?!
         return text
     }
 
@@ -98,16 +106,21 @@ class Typograph {
     static CollapseSpaces(text) {
         return RegExReplace(text, "\x20{2,}", " ")               ; двойные+ обычные пробелы -> один
     }
-    static SpaceClean(text, settings) {
+    static SpaceClean(text) {
         text := RegExReplace(text, "([«„(\[])\x20+", "$1")                  ; убрать пробел после открывающих
         text := RegExReplace(text, "\x20+([.…:,;?!»“)\]])", "$1")          ; и перед закрывающими/пунктуацией
         text := RegExReplace(text, "([,;:])([A-Za-zА-Яа-яЁё])", "$1 $2")   ; пробел после ,;: перед буквой
-        ; процент: дефолт слитно; narrow -> узкий неразрывный
-        if (settings["PercentSpace"] = "narrow")
-            text := RegExReplace(text, "(\d)[\x20\xA0\x{202F}]*%", "$1" this.U_NNBSP "%")
-        else
-            text := RegExReplace(text, "(\d)[\x20\xA0\x{202F}]*%", "$1%")
         return text
+    }
+
+    ; G4. Стиль пробела у % — независим от чистки пробелов (percentSpacing в Swift):
+    ; none слитно | narrow узкий неразрывный | regular обычный пробел
+    static PercentSpacing(text, settings) {
+        switch settings["PercentSpace"] {
+            case "narrow":  return RegExReplace(text, "(\d)[\x20\xA0\x{202F}]*%", "$1" this.U_NNBSP "%")
+            case "regular": return RegExReplace(text, "(\d)[\x20\xA0\x{202F}]*%", "$1 %")
+            default:        return RegExReplace(text, "(\d)[\x20\xA0\x{202F}]*%", "$1%")
+        }
     }
 
     ; =========================================================================
@@ -227,32 +240,45 @@ class Typograph {
     ;  Заглушки групп — реализуются по очереди (§10). Пока тождество.
     ; =========================================================================
     ; =========================================================================
-    ;  G5. Nbsp — неразрывные пробелы (§5). Работает по уже расставленным пробелам.
+    ;  G5. Nbsp — неразрывные пробелы (§5). Работает по уже расставленным
+    ;  пробелам. Гейты: NbspInitials / NbspParticles / NbspShortWords /
+    ;  NbspNumberWord. Win-правила без мак-аналога — под ближайшим ключом
+    ;  (UI.md §3): и т.д./сокращения/орг-формы/висячие -> ShortWords.
     ; =========================================================================
-    static Nbsp(text) {
+    static Nbsp(text, settings) {
         nb := this.U_NBSP
-        ; инициалы: А.А. Фамилия и Фамилия К.П.
-        text := RegExReplace(text, "([А-ЯЁ]\.[А-ЯЁ]\.)\x20([А-ЯЁ][а-яё])", "$1" nb "$2")
-        text := RegExReplace(text, "([А-ЯЁ][а-яё]+)\x20([А-ЯЁ]\.[А-ЯЁ]\.)", "$1" nb "$2")
-        text := RegExReplace(text, "(?<![А-Яа-яЁё])([А-ЯЁ]\.)\x20([А-ЯЁ][а-яё]+)", "$1" nb "$2")
-        ; и т.д. / и т.п. / и др. (НБ перед и внутри)
-        text := RegExReplace(text, "\x20и\x20т\.\x20?д\.", nb "и" nb "т." nb "д.")
-        text := RegExReplace(text, "\x20и\x20т\.\x20?п\.", nb "и" nb "т." nb "п.")
-        text := RegExReplace(text, "\x20и\x20др\.", nb "и" nb "др.")
-        ; сокращения с точкой: г. ул. д. кв. рис. гл. ст. п.
-        text := RegExReplace(text, "i)(?<![А-Яа-яЁё])(г|ул|д|кв|рис|гл|ст|п)\.\x20", "$1." nb)
-        ; орг-формы
-        text := RegExReplace(text, "(?<![А-ЯA-Z])(АО|ООО|ОАО|ЗАО|ПАО)\x20", "$1" nb)
-        ; № и § перед числом
-        text := RegExReplace(text, "([№§])\x20*(\d)", "$1" nb "$2")
-        ; короткие слова -> НБ после
-        text := RegExReplace(text, "i)(?<![А-Яа-яЁёA-Za-z])(" this.SHORT_WORDS ")\x20", "$1" nb)
-        ; частицы -> НБ перед (длинные раньше)
-        text := RegExReplace(text, "\x20(бы|же|ли|ль|б|ж)(?![А-Яа-яЁё])", nb "$1")
-        ; число + слово
-        text := RegExReplace(text, "(\d)\x20(?=[А-Яа-яЁёA-Za-z])", "$1" nb)
-        ; последнее короткое слово (1-3) в конце предложения/строки
-        text := RegExReplace(text, "m)\x20([А-Яа-яЁёA-Za-z]{1,3})(?=[.!?…]|\x20*$)", nb "$1")
+        if settings["NbspInitials"] {
+            ; инициалы: А.А. Фамилия и Фамилия К.П.
+            text := RegExReplace(text, "([А-ЯЁ]\.[А-ЯЁ]\.)\x20([А-ЯЁ][а-яё])", "$1" nb "$2")
+            text := RegExReplace(text, "([А-ЯЁ][а-яё]+)\x20([А-ЯЁ]\.[А-ЯЁ]\.)", "$1" nb "$2")
+            text := RegExReplace(text, "(?<![А-Яа-яЁё])([А-ЯЁ]\.)\x20([А-ЯЁ][а-яё]+)", "$1" nb "$2")
+        }
+        if settings["NbspShortWords"] {
+            ; и т.д. / и т.п. / и др. (НБ перед и внутри)
+            text := RegExReplace(text, "\x20и\x20т\.\x20?д\.", nb "и" nb "т." nb "д.")
+            text := RegExReplace(text, "\x20и\x20т\.\x20?п\.", nb "и" nb "т." nb "п.")
+            text := RegExReplace(text, "\x20и\x20др\.", nb "и" nb "др.")
+            ; сокращения с точкой: г. ул. д. кв. рис. гл. ст. п.
+            text := RegExReplace(text, "i)(?<![А-Яа-яЁё])(г|ул|д|кв|рис|гл|ст|п)\.\x20", "$1." nb)
+            ; орг-формы
+            text := RegExReplace(text, "(?<![А-ЯA-Z])(АО|ООО|ОАО|ЗАО|ПАО)\x20", "$1" nb)
+            ; № и § перед числом
+            text := RegExReplace(text, "([№§])\x20*(\d)", "$1" nb "$2")
+            ; короткие слова -> НБ после
+            text := RegExReplace(text, "i)(?<![А-Яа-яЁёA-Za-z])(" this.SHORT_WORDS ")\x20", "$1" nb)
+        }
+        if settings["NbspParticles"] {
+            ; частицы -> НБ перед (длинные раньше)
+            text := RegExReplace(text, "\x20(бы|же|ли|ль|б|ж)(?![А-Яа-яЁё])", nb "$1")
+        }
+        if settings["NbspNumberWord"] {
+            ; число + слово
+            text := RegExReplace(text, "(\d)\x20(?=[А-Яа-яЁёA-Za-z])", "$1" nb)
+        }
+        if settings["NbspShortWords"] {
+            ; последнее короткое слово (1-3) в конце предложения/строки
+            text := RegExReplace(text, "m)\x20([А-Яа-яЁёA-Za-z]{1,3})(?=[.!?…]|\x20*$)", nb "$1")
+        }
         return text
     }
 
@@ -304,25 +330,32 @@ class Typograph {
     }
 
     ; =========================================================================
-    ;  G6. Numbers — числа и валюта (§5). Группировка разрядов — процедурой.
+    ;  G6. Numbers — числа и валюта (§5). Гейты: CurrencyKopecks /
+    ;  CurrencySymbol / CurrencyGrouping (группировка — внутри FormatMoney).
+    ;  «тыс./млн» (нет на маке) — под NbspNumberWord (UI.md §3).
     ; =========================================================================
     static Numbers(text, settings) {
         nb := this.U_NBSP
         before := (settings["CurrencyPosition"] = "before")
-        text := this.MergeKopecks(text)
-        text := this.NormalizeCurrency(text, before)
-        ; величины: тыс. с точкой; млн/млрд/трлн без точки; НБ перед словом
-        text := RegExReplace(text, "i)(\d)[\x20\xA0]*тыс\.?(?![А-Яа-яЁё])", "$1" nb "тыс.")
-        text := RegExReplace(text, "i)(\d)[\x20\xA0]*(млн|млрд|трлн)\.?(?![А-Яа-яЁё])", "$1" nb "$2")
+        grouping := settings["CurrencyGrouping"]
+        if settings["CurrencyKopecks"]
+            text := this.MergeKopecks(text, grouping)
+        if settings["CurrencySymbol"]
+            text := this.NormalizeCurrency(text, before, grouping)
+        if settings["NbspNumberWord"] {
+            ; величины: тыс. с точкой; млн/млрд/трлн без точки; НБ перед словом
+            text := RegExReplace(text, "i)(\d)[\x20\xA0]*тыс\.?(?![А-Яа-яЁё])", "$1" nb "тыс.")
+            text := RegExReplace(text, "i)(\d)[\x20\xA0]*(млн|млрд|трлн)\.?(?![А-Яа-яЁё])", "$1" nb "$2")
+        }
         return text
     }
 
     ; 45 руб. 5 коп. -> 45,05 ₽
-    static MergeKopecks(text) {
+    static MergeKopecks(text, grouping) {
         nb := this.U_NBSP
         pos := 1
         while RegExMatch(text, "i)(\d+)[\x20\xA0]*руб\.?[\x20\xA0]*(\d+)[\x20\xA0]*коп\.?", &m, pos) {
-            rep := m[1] "," Format("{:02}", Integer(m[2])) nb "₽"
+            rep := this.FormatMoney(m[1] "," Format("{:02}", Integer(m[2])), grouping) nb "₽"
             text := SubStr(text, 1, m.Pos - 1) rep SubStr(text, m.Pos + m.Len)
             pos := m.Pos + StrLen(rep)
         }
@@ -330,14 +363,14 @@ class Typograph {
     }
 
     ; Нормализация "<число><валюта>" и "<валюта><число>" в любом порядке.
-    static NormalizeCurrency(text, before) {
+    static NormalizeCurrency(text, before, grouping) {
         nb := this.U_NBSP
         numPat := "(\d[\d.,\xA0]*\d|\d)"
         for symbol, pat in this.CUR {
             ; число затем валюта
             pos := 1
             while RegExMatch(text, "i)" numPat "[\x20\xA0]*(?:" pat ")", &m, pos) {
-                money := this.FormatMoney(m[1])
+                money := this.FormatMoney(m[1], grouping)
                 rep := before ? (symbol nb money) : (money nb symbol)
                 text := SubStr(text, 1, m.Pos - 1) rep SubStr(text, m.Pos + m.Len)
                 pos := m.Pos + StrLen(rep)
@@ -345,7 +378,7 @@ class Typograph {
             ; валюта затем число
             pos := 1
             while RegExMatch(text, "i)(?:" pat ")[\x20\xA0]*" numPat, &m, pos) {
-                money := this.FormatMoney(m[1])
+                money := this.FormatMoney(m[1], grouping)
                 rep := before ? (symbol nb money) : (money nb symbol)
                 text := SubStr(text, 1, m.Pos - 1) rep SubStr(text, m.Pos + m.Len)
                 pos := m.Pos + StrLen(rep)
@@ -354,8 +387,9 @@ class Typograph {
         return text
     }
 
-    ; Форматирование суммы: убрать разряды, точка->запятая, сгруппировать (>=5 цифр).
-    static FormatMoney(numRaw) {
+    ; Форматирование суммы: убрать разряды, точка->запятая; группировка >=5 цифр
+    ; только при CurrencyGrouping (как placeCurrency в Typograph.swift).
+    static FormatMoney(numRaw, grouping) {
         s := RegExReplace(numRaw, "[\x20\xA0]", "")        ; снять разделители разрядов
         frac := ""
         if RegExMatch(s, "^(\d+)[.,](\d+)$", &mm) {
@@ -364,7 +398,7 @@ class Typograph {
         } else {
             intPart := RegExReplace(s, "[^\d]", "")
         }
-        if (StrLen(intPart) >= 5)
+        if (grouping && StrLen(intPart) >= 5)
             intPart := this.GroupDigits(intPart)
         return (frac != "") ? (intPart "," frac) : intPart
     }
@@ -386,27 +420,33 @@ class Typograph {
     }
 
     ; =========================================================================
-    ;  G2. Dashes — тире (§5)
+    ;  G2. Dashes — тире (§5). Гейты: DashSpeech / DashText / DashRanges
+    ;  (как dashes() в Typograph.swift).
     ; =========================================================================
-    static Dashes(text) {
+    static Dashes(text, settings) {
         em := "—"               ; U+2014 длинное тире
         en := Chr(0x2013)       ; – среднее тире
         nb := this.U_NBSP
 
-        ; начало строки/прямой речи: — + НБ ПОСЛЕ тире (поправка по SBOL)
-        text := RegExReplace(text, "m)^[-–—]\x20+", em nb)
-        ; начало предложения после точки: . — + НБ
-        text := RegExReplace(text, "(\.)\x20+[-–—]\x20+", "$1 " em nb)
-        ; внутри текста (одиночный/двойной дефис, среднее тире в пробелах): НБ + — + пробел
-        text := RegExReplace(text, "\x20+(?:--|[-–—])\x20+", nb em " ")
-
-        ; диапазоны чисел -> среднее тире, без пробелов (не трогая даты/цепочки)
-        text := RegExReplace(text, "(?<![\d-])(\d+)-(\d+)(?![\d-])", "$1" en "$2")
-        ; диапазоны месяцев/дней (оба слова из закрытого списка)
-        rw := this.RANGE_WORDS
-        text := RegExReplace(text, "i)(?<![А-Яа-яЁё-])(" rw ")-(" rw ")(?![А-Яа-яЁё-])", "$1" en "$2")
-        ; римские диапазоны
-        text := RegExReplace(text, "(?<![A-Za-zА-Яа-яЁё-])([IVXLCDM]+)-([IVXLCDM]+)(?![A-Za-zА-Яа-яЁё-])", "$1" en "$2")
+        if settings["DashSpeech"] {
+            ; начало строки/прямой речи: — + НБ ПОСЛЕ тире (поправка по SBOL)
+            text := RegExReplace(text, "m)^[-–—]\x20+", em nb)
+            ; начало предложения после точки: . — + НБ
+            text := RegExReplace(text, "(\.)\x20+[-–—]\x20+", "$1 " em nb)
+        }
+        if settings["DashText"] {
+            ; внутри текста (одиночный/двойной дефис, среднее тире в пробелах): НБ + — + пробел
+            text := RegExReplace(text, "\x20+(?:--|[-–—])\x20+", nb em " ")
+        }
+        if settings["DashRanges"] {
+            ; диапазоны чисел -> среднее тире, без пробелов (не трогая даты/цепочки)
+            text := RegExReplace(text, "(?<![\d-])(\d+)-(\d+)(?![\d-])", "$1" en "$2")
+            ; диапазоны месяцев/дней (оба слова из закрытого списка)
+            rw := this.RANGE_WORDS
+            text := RegExReplace(text, "i)(?<![А-Яа-яЁё-])(" rw ")-(" rw ")(?![А-Яа-яЁё-])", "$1" en "$2")
+            ; римские диапазоны
+            text := RegExReplace(text, "(?<![A-Za-zА-Яа-яЁё-])([IVXLCDM]+)-([IVXLCDM]+)(?![A-Za-zА-Яа-яЁё-])", "$1" en "$2")
+        }
         return text
     }
 }

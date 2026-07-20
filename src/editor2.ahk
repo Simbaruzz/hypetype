@@ -9,6 +9,8 @@
 
 class Editor2 {
     static _gui := ""
+    static StandAlone := false      ; true (ui-preview): крестик завершает скрипт;
+                                    ; false (hypetype): крестик прячет окно, трей живёт
     static _caps := Map()           ; w3cName -> {alt: Text, shift: Text} для обновления подписей
     static _editGui := ""           ; попап правки (один за раз)
     static _hints := []             ; Text-контролы подсказки (переключаются ⓘ)
@@ -69,7 +71,17 @@ class Editor2 {
     static Show() {
         if !this._gui
             this.Build()
+        if TypoWin._openFlag                    ; окно спрятали в режиме настроек —
+            TypoWin.Close()                     ; открываемся снова с клавиатуры
         this._gui.Show()
+    }
+
+    ; крестик: в спайке — выход, в проде — спрятать окно (программа в трее)
+    static OnClose(*) {
+        if this.StandAlone
+            ExitApp()
+        this.CloseEdit()                        ; попап правки не должен пережить окно
+        this._gui.Hide()
     }
 
     ; мнемоники рядов: mappable-клавиши в порядке физической клавиатуры
@@ -99,7 +111,7 @@ class Editor2 {
         g := Gui("-Resize", Txt.MainTitle)
         g.BackColor := this.COL_BG
         g.MarginX := this.MARGIN, g.MarginY := this.MARGIN
-        g.OnEvent("Close", (*) => ExitApp())    ; крестик закрывает приложение из любого состояния
+        g.OnEvent("Close", ObjBindMethod(this, "OnClose"))   ; спайк: выход; прод: спрятать
         g.OnEvent("Escape", (*) => (TypoWin._openFlag && TypoWin.Close()))  ; Esc в настройках -> клавиатура
         this._gui := g
         this.ApplyDarkTitle(g)
@@ -496,8 +508,8 @@ class Editor2 {
     }
 
     static OnSave(name, altEdit, shiftEdit) {
-        alt := RegExReplace(altEdit.Value, "[\r\n]", "")      ; валидация как в editor.ahk
-        shift := RegExReplace(shiftEdit.Value, "[\r\n]", "")
+        alt := this.Sanitize(altEdit.Value)
+        shift := this.Sanitize(shiftEdit.Value)
         if (this.CpCount(alt) > 32 || this.CpCount(shift) > 32) {
             MsgBox(Txt.TooLongBody, Txt.TooLongTitle, "Icon!")
             return
@@ -506,6 +518,11 @@ class Editor2 {
         this._caps[name].alt.Text := this.KeyRepr(alt)
         this._caps[name].shift.Text := this.KeyRepr(shift)
         this.CloseEdit()
+    }
+
+    ; убрать переводы строк; остальное разрешено (валидация значения клавиши)
+    static Sanitize(s) {
+        return RegExReplace(s, "[\r\n]", "")
     }
 
     ; кодпоинты, суррогатная пара = 1 (как editor.ahk)
