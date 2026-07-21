@@ -30,7 +30,7 @@ class Editor2 {
     static _fullH := 0              ; высота с подсказкой
 
     ; строки спайка (в общий strings.ahk не лезем до вердикта)
-    static STR_CANCEL := "отмена"
+    static STR_CANCEL := "отменить"
     static STR_SAVE := "сохранить"  ; строчными, как на маке (Txt.EditSave — с заглавной)
     static STR_PASTE := "вставьте нужные символы из буфера обмена Ctrl+V"
     static _shade := ""             ; вуаль-затемнение под попапом
@@ -45,8 +45,8 @@ class Editor2 {
     static COL_SHIFT := "B873FF"    ; Shift-символ (фиолетовый акцент; серый вариант — на скрине gray-shift)
     static COL_BASE := "757575"     ; буква клавиши и декор-глифы
     static COL_HINT := "8C8C8C"     ; текст подсказки внизу
-    static FONT := "Segoe UI"       ; системный; глифы добирает фонт-линкинг GDI
-    static FONT_GLYPH := "Segoe UI Symbol"  ; слои символов кейкапов: есть ␣ и другие
+    static FONT := "Segoe UI Semibold"       ; системный; глифы добирает фонт-линкинг GDI
+    static FONT_GLYPH := "Segoe UI Semibold"  ; слои символов кейкапов: есть ␣ и другие
                                     ; глифы, которых нет в Segoe UI (UI-SPIKE §3.3)
 
     ; невидимые пробельные символы -> прямоугольник примерно их ширины
