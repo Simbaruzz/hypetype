@@ -51,6 +51,8 @@ BuildTray() {
     ; типографа — единственный источник правды (UI.md §4)
     tray.Add()
     tray.Add(Txt.MenuEditor, ShowEditor)
+    tray.Default := Txt.MenuEditor    ; жирный пункт + действие по клику на иконку
+    tray.ClickCount := 1              ; один клик, не обязательно двойной
     A_IconTip := "hypetype " APP_VERSION
     RefreshTrayChecks()
 }
