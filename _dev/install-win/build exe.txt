@@ -1,0 +1,10 @@
+Как собирать самому — два способа:
+
+Локально (у тебя уже стоит Ahk2Exe в C:\Program Files\AutoHotkey\Compiler). Из корня проекта в PowerShell:
+
+& "C:\Program Files\AutoHotkey\Compiler\Ahk2Exe.exe" /in "src\hypetype.ahk" /out "$PWD\hypetype.exe" /icon "assets\icon.ico" /base "C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe"
+Важно: /out — абсолютный путь (иначе exe уедет в src\), а пути с пробелами — в кавычках (моя первая попытка упала именно на этом).
+
+
+
+& "C:\Program Files\AutoHotkey\Compiler\Ahk2Exe.exe" /in "src\hypetype.ahk" /out "$PWD\hypetype.exe" /icon "assets\icon.ico" /base "C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe"
