@@ -62,8 +62,8 @@ class Editor2 {
         0x2001, Chr(0x2588), 0x2003, Chr(0x2588), 0x3000, Chr(0x2588)) ; em quad/space, ideographic
 
     ; --- сетка: логические px при 100% DPI; встроенный DPIScale v2 множит сам ---
-    static U := 56                  ; ширина клавиши 1u
-    static KH := 52                 ; высота клавиши
+    static U := 64                  ; ширина клавиши 1u
+    static KH := 64                 ; высота = ширине (квадратные кейкапы, было 52)
     static GAP := 6                 ; зазор между клавишами
     static MARGIN := 16             ; поля окна
 
@@ -260,14 +260,16 @@ class Editor2 {
     static AddKeycap(g, x, y, w, name) {
         body := this.AddBody(g, x, y, w)
         k := Config.GetKey(name)
-        g.SetFont("s8", this.FONT_GLYPH)
-        shiftCtrl := g.AddText(Format("x{} y{} w{} h14 Right Background{} c{}",
+        g.SetFont("s11", this.FONT_GLYPH)
+        ; h23 = ровно до верха altCtrl (KH-28=28, зона [5,28)) — иначе altCtrl,
+        ; созданный позже (то есть выше в z-order), перекрывает низ этого слоя
+        shiftCtrl := g.AddText(Format("x{} y{} w{} h23 Right Background{} c{}",
             x + 6, y + 5, w - 12, this.COL_KEY, this.COL_SHIFT), this.KeyRepr(k.altShift))
         baseW := (name = "Space") ? 60 : 18
-        g.SetFont("s9", this.FONT)
+        g.SetFont("s8", this.FONT)
         baseCtrl := g.AddText(Format("x{} y{} w{} h16 Background{} c{}",
             x + 6, y + this.KH - 21, baseW, this.COL_KEY, this.COL_BASE), this.DISPLAY[name])
-        g.SetFont("s12", this.FONT_GLYPH)
+        g.SetFont("s11", this.FONT_GLYPH)
         ; h23: у ␣ перекладина на базовой линии — при h20 её срезало (виднелись «..»)
         altCtrl := g.AddText(Format("x{} y{} w{} h23 Right Background{} c{}",
             x + 6 + baseW, y + this.KH - 28, w - baseW - 12, this.COL_KEY, this.COL_MAIN), this.KeyRepr(k.alt))
@@ -393,8 +395,11 @@ class Editor2 {
         glyph := g.AddText(Format("x{} y{} w{} Right Background{} c{}", x + 8, y + this.KH - 24, w - 16, this.COL_KEY, this.COL_BASE),
             Chr(0x232B))                                          ; ⌫
         cb := ObjBindMethod(this, "ShowTypoStub")
-        for ctrl in [body, cap, glyph]
+        this._caps["__typo"] := {layers: [body, cap, glyph]}
+        for ctrl in [body, cap, glyph] {
             ctrl.OnEvent("Click", cb)
+            this._byHwnd[ctrl.Hwnd] := "__typo"
+        }
         this.MakeHand([body, cap, glyph])
         return x + w + this.GAP
     }
@@ -418,8 +423,10 @@ class Editor2 {
         hh := (this.KH - this.GAP) // 2
         yb := y + this.KH - hh                                    ; низ ряда
         g.SetFont("s7", this.FONT)
-        for pair in [[x, yb, Chr(0x25C4)], [x + this.U + this.GAP, y, Chr(0x25B2)],
-                     [x + this.U + this.GAP, yb, Chr(0x25BC)], [x + 2 * (this.U + this.GAP), yb, Chr(0x25BA)]] {
+        ; все четыре — из семейства TRIANGLE (не POINTER, 25C4/25BA у́же и «сплющены»
+        ; по сравнению с 25B2/25BC — выглядели рассинхронно с ▲/▼)
+        for pair in [[x, yb, Chr(0x25C0)], [x + this.U + this.GAP, y, Chr(0x25B2)],
+                     [x + this.U + this.GAP, yb, Chr(0x25BC)], [x + 2 * (this.U + this.GAP), yb, Chr(0x25B6)]] {
             this.AddBody(g, pair[1], pair[2], this.U, hh, this.COL_DECOR)
             g.AddText(Format("x{} y{} w{} Center Background{} c{}", pair[1] + 2, pair[2] + hh // 2 - 6, this.U - 4, this.COL_DECOR, this.COL_BASE),
                 pair[3])
